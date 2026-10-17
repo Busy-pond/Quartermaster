@@ -1,0 +1,39 @@
+# Deploy to Render: one web service. The database lives on Neon (free forever),
+# so nothing expires before judging ends.
+services:
+  - type: web
+    name: quartermaster
+    runtime: node
+    plan: free # switch to "starter" (paid from hackathon credits) before recording the demo
+    buildCommand: npm install --no-audit --no-fund && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: APP_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: PAYPAL_API_BASE
+        value: https://api-m.sandbox.paypal.com
+      - key: NEXT_PUBLIC_PAYPAL_SDK_URL
+        value: https://www.sandbox.paypal.com/web-sdk/v6/core
+      - key: SANDBOX_PAYEE_EMAIL
+        sync: false
+      - key: SANDBOX_VOLUNTEER_EMAIL
+        sync: false
+      - key: GOOGLE_GENERATIVE_AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: gemini-3.5-flash
+      - key: CHANNEL3_API_KEY
+        sync: false
+      - key: CHANNEL3_ENABLED
+        value: "true"

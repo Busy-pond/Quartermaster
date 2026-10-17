@@ -1,0 +1,183 @@
+import { sql } from "drizzle-orm";
+import { integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import type { Decision, ProposalLine } from "@/lib/mandates/engine";
+
+const id = () => text("id").primaryKey().$defaultFn(() => crypto.randomUUID());
+const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
+
+export const orgs = pgTable("orgs", {
+  id: id(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  createdAt: createdAt(),
+});
+
+export const members = pgTable("members", {
+  id: id(),
+  orgId: text("org_id").notNull().references(() => orgs.id),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  // Sandbox personal account email that receives reimbursements (Payouts)
+  paypalEmail: text("paypal_email"),
+  role: text("role", { enum: ["member", "treasurer"] }).notNull().default("member"),
+  createdAt: createdAt(),
+});
+
+export const events = pgTable("events", {
+  id: id(),
+  orgId: text("org_id").notNull().references(() => orgs.id),
+  name: text("name").notNull(),
+  location: text("location"),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  createdAt: createdAt(),
+});
+
+/**
+ * Vendors map a retailer domain (from Channel3) to the PayPal sandbox business
+ * account that stands in for that retailer, so sandbox money has somewhere to go.
+ */
+export const vendors = pgTable(
+  "vendors",
+  {
+    id: id(),
+    orgId: text("org_id").notNull().references(() => orgs.id),
+    domain: text("domain").notNull(),
+    name: text("name").notNull(),
+    payeeEmail: text("payee_email").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("vendors_org_domain").on(t.orgId, t.domain)],
+);
+
+export const mandates = pgTable("mandates", {
+  id: id(),
+  orgId: text("org_id").notNull().references(() => orgs.id),
+  eventId: text("event_id").references(() => events.id),
+  title: text("title").notNull(),
+  status: text("status", { enum: ["draft", "active", "revoked"] }).notNull().default("draft"),
+  currency: text("currency").notNull().default("USD"),
+  capCents: integer("cap_cents").notNull(),
+  perItemAutoLimitCents: integer("per_item_auto_limit_cents").notNull(),
+  perOrderAutoLimitCents: integer("per_order_auto_limit_cents").notNull(),
+  categories: text("categories").array().notNull(),
+  vendorAllowlist: text("vendor_allowlist").array().notNull().default(sql`'{}'::text[]`),
+  startsAt: timestamp("starts_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  approverIds: text("approver_ids").array().notNull(),
+  signedBy: text("signed_by").references(() => members.id),
+  signedAt: timestamp("signed_at", { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+export const purchaseRequests = pgTable("purchase_requests", {
+  id: id(),
+  orgId: text("org_id").notNull().references(() => orgs.id),
+  memberId: text("member_id").notNull().references(() => members.id),
+  text: text("text").notNull(),
+  traceId: text("trace_id").notNull().$defaultFn(() => crypto.randomUUID()),
+  createdAt: createdAt(),
+});
+
+export const productOptions = pgTable(
+  "product_options",
+  {
+    id: id(),
+    requestId: text("request_id").notNull().references(() => purchaseRequests.id),
+    source: text("source", { enum: ["channel3", "fixture"] }).notNull(),
+    externalId: text("external_id").notNull(),
+    title: text("title").notNull(),
+    imageUrl: text("image_url"),
+    url: text("url"),
+    vendor: text("vendor").notNull(),
+    priceCents: integer("price_cents").notNull(),
+    currency: text("currency").notNull(),
+    availability: text("availability"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("product_options_request").on(t.requestId)],
+);
+
+export type PaymentStatus =
+  | "denied"
+  | "needs_approval"
+  | "approved"
+  | "captured"
+  | "failed"
+  | "refunded";
+
+export const payments = pgTable(
+  "payments",
+  {
+    id: id(),
+    orgId: text("org_id").notNull().references(() => orgs.id),
+    requestId: text("request_id").references(() => purchaseRequests.id),
+    mandateId: text("mandate_id").notNull().references(() => mandates.id),
+    vendor: text("vendor").notNull(),
+    currency: text("currency").notNull(),
+    totalCents: integer("total_cents").notNull(),
+    lines: jsonb("lines").$type<ProposalLine[]>().notNull(),
+    // Snapshot of the options the agent considered and why it picked this one
+    optionsConsidered: jsonb("options_considered").$type<{ title: string; vendor: string; priceCents: number; url?: string | null }[]>(),
+    rationale: text("rationale"),
+    decision: jsonb("decision").$type<Decision>().notNull(),
+    status: text("status").$type<PaymentStatus>().notNull(),
+    paypalOrderId: text("paypal_order_id"),
+    paypalCaptureId: text("paypal_capture_id"),
+    approvedBy: text("approved_by").references(() => members.id),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    capturedAt: timestamp("captured_at", { withTimezone: true }),
+    traceId: text("trace_id").notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("payments_mandate").on(t.mandateId), index("payments_order").on(t.paypalOrderId)],
+);
+
+export const reimbursements = pgTable("reimbursements", {
+  id: id(),
+  orgId: text("org_id").notNull().references(() => orgs.id),
+  memberId: text("member_id").notNull().references(() => members.id),
+  mandateId: text("mandate_id").references(() => mandates.id),
+  receiptImage: text("receipt_image"),
+  extracted: jsonb("extracted"),
+  totalCents: integer("total_cents"),
+  currency: text("currency"),
+  duplicateScore: real("duplicate_score"),
+  decision: jsonb("decision").$type<Decision>(),
+  status: text("status", { enum: ["submitted", "needs_approval", "approved", "paid", "rejected", "failed"] })
+    .notNull()
+    .default("submitted"),
+  payoutBatchId: text("payout_batch_id"),
+  createdAt: createdAt(),
+});
+
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: id(),
+    orgId: text("org_id").notNull(),
+    traceId: text("trace_id").notNull(),
+    paymentId: text("payment_id"),
+    actor: text("actor", { enum: ["agent", "human", "webhook", "system"] }).notNull(),
+    type: text("type").notNull(),
+    message: text("message").notNull(),
+    payload: jsonb("payload"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("audit_trace").on(t.traceId), index("audit_payment").on(t.paymentId)],
+);
+
+/** Every PayPal webhook delivery we accepted — the primary key makes processing idempotent. */
+export const webhookEvents = pgTable("webhook_events", {
+  id: text("id").primaryKey(), // PayPal event id
+  type: text("type").notNull(),
+  payload: jsonb("payload").notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Small key-value cache for third-party responses (Channel3, later KERNEL). */
+export const apiCache = pgTable("api_cache", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  createdAt: createdAt(),
+});

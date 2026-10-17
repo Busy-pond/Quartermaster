@@ -1,0 +1,23 @@
+Quartermaster update 2026-10-16.6 (changes since 2026-10-16.5)
+Extract into your project folder and replace files when asked. No reinstall needed.
+
+Changed or new files:
+  decision.md
+  flow.md
+  src/app/approve/[id]/page.tsx
+  src/app/chat/page.tsx
+  src/app/globals.css
+  src/app/layout.tsx
+  src/app/mandates/page.tsx
+  src/app/page.tsx
+  src/app/receipts/[id]/page.tsx
+  src/components/budget-bar.tsx
+  src/components/decision.tsx
+  src/components/mandate-simulator.tsx
+  src/components/nav-links.tsx
+  src/components/paypal-button.tsx
+  src/components/stamp.tsx
+  src/lib/agent/tools.ts
+  src/lib/purchases.ts
+  src/lib/use-tween.ts
+  src/lib/version.ts

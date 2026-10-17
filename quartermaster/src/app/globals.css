@@ -1,0 +1,285 @@
+@import "tailwindcss";
+
+/*
+ * Quartermaster — "requisition desk" visual system.
+ * Cool form paper, navy stamp ink, ledger green, stamp red, approval amber.
+ * Motion answers events (a rule is checked, a stamp lands, money moves);
+ * nothing loops for decoration. Everything stops under prefers-reduced-motion.
+ */
+@theme {
+  --color-paper: #f3f6f8; /* form paper */
+  --color-card: #ffffff;
+  --color-ink: #1b2a4a; /* stamp-pad navy */
+  --color-muted: #5b6b7f;
+  --color-line: #d5dee5;
+  --color-brand: #0f5b4a; /* ledger green */
+  --color-brand-soft: #e2f0eb;
+  --color-ok: #1f7a4d;
+  --color-ok-soft: #e3f3ea;
+  --color-warn: #b7791f;
+  --color-warn-soft: #fbf1dd;
+  --color-bad: #c4302b; /* stamp red */
+  --color-bad-soft: #fce7e5;
+
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-heading), var(--font-body), ui-sans-serif, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Menlo, monospace;
+
+  --ease-stamp: cubic-bezier(0.2, 1.4, 0.4, 1);
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+@utility card {
+  @apply rounded-xl border border-line bg-card;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-[transform,background-color,opacity] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-brand text-white hover:bg-[#0c4a3c];
+}
+@utility btn-ghost {
+  @apply btn border border-line bg-card hover:bg-paper;
+}
+@utility label {
+  @apply text-sm font-medium text-muted;
+}
+@utility amount {
+  @apply tabular-nums;
+}
+
+/* ------------------------------------------------------------ Requisition slip */
+/* The hero object: a form with a perforated top edge and ruled field lines. */
+.slip {
+  position: relative;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 31px, rgba(27, 42, 74, 0.06) 31px 32px),
+    #ffffff;
+  border: 1px solid var(--color-line);
+  border-radius: 6px 6px 14px 14px;
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 18px 40px -24px rgba(27, 42, 74, 0.35);
+}
+.slip::before {
+  /* perforation */
+  content: "";
+  position: absolute;
+  inset: -6px 10px auto;
+  height: 12px;
+  background: radial-gradient(circle at 6px 6px, var(--color-paper) 4px, transparent 4.5px) 0 0 / 14px 12px repeat-x;
+}
+
+/* ------------------------------------------------------------ Rubber stamp */
+.stamp {
+  --stamp: var(--color-ink);
+  display: inline-grid;
+  place-items: center;
+  padding: 0.35em 0.9em 0.3em;
+  border: 3px solid var(--stamp);
+  border-radius: 10px;
+  outline: 1.5px solid var(--stamp);
+  outline-offset: 3px;
+  color: var(--stamp);
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase; /* a stamp is all caps by nature */
+  white-space: nowrap;
+  line-height: 1;
+  rotate: -8deg;
+  /* uneven ink */
+  mask-image: radial-gradient(circle at 30% 40%, #000 55%, rgba(0, 0, 0, 0.82) 75%, #000 100%);
+  opacity: 0.92;
+  mix-blend-mode: multiply;
+  user-select: none;
+}
+.stamp[data-kind="allow"],
+.stamp[data-kind="paid"] {
+  --stamp: var(--color-ok);
+}
+.stamp[data-kind="needs_approval"] {
+  --stamp: var(--color-warn);
+}
+.stamp[data-kind="deny"] {
+  --stamp: var(--color-bad);
+}
+.stamp[data-kind="refunded"] {
+  --stamp: var(--color-muted);
+}
+.stamp-slam {
+  animation: stamp-slam 520ms var(--ease-stamp) both;
+}
+@keyframes stamp-slam {
+  0% {
+    opacity: 0;
+    scale: 2.4;
+    rotate: -18deg;
+    filter: blur(2px);
+  }
+  55% {
+    opacity: 0.95;
+    scale: 0.92;
+    rotate: -7deg;
+    filter: blur(0);
+  }
+  75% {
+    scale: 1.03;
+  }
+  100% {
+    opacity: 0.92;
+    scale: 1;
+    rotate: -8deg;
+  }
+}
+/* the paper jolts when the stamp lands */
+.paper-jolt {
+  animation: paper-jolt 380ms ease-out 260ms both;
+}
+@keyframes paper-jolt {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  30% {
+    translate: 0 3px;
+  }
+  60% {
+    translate: 0 -1px;
+  }
+}
+
+/* ------------------------------------------------------------ Rule ladder */
+.rule-row {
+  opacity: 0;
+  translate: -6px 0;
+  animation: rule-in 260ms var(--ease-out-soft) forwards;
+  animation-delay: calc(var(--i) * 70ms);
+}
+@keyframes rule-in {
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.rule-mark path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: draw 280ms ease-out forwards;
+  animation-delay: calc(var(--i) * 70ms + 120ms);
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.rule-row[data-state="deny"] {
+  animation-name: rule-in, rule-shake;
+  animation-duration: 260ms, 360ms;
+  animation-delay: calc(var(--i) * 70ms), calc(var(--i) * 70ms + 300ms);
+}
+@keyframes rule-shake {
+  20% {
+    translate: -3px 0;
+  }
+  40% {
+    translate: 3px 0;
+  }
+  60% {
+    translate: -2px 0;
+  }
+  80% {
+    translate: 1px 0;
+  }
+}
+
+/* ------------------------------------------------------------ Budget bar */
+.bar-seg {
+  transform-origin: left center;
+  transition: width 280ms var(--ease-out-soft);
+  animation: bar-grow 700ms var(--ease-out-soft) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes bar-grow {
+  from {
+    scale: 0 1;
+  }
+}
+.bar-over {
+  background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.35) 0 6px, transparent 6px 12px);
+}
+
+/* ------------------------------------------------------------ Agent trail */
+.trail-dot-live {
+  animation: pulse-ring 1.2s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(15, 91, 74, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(15, 91, 74, 0);
+  }
+}
+.enter-up {
+  animation: enter-up 320ms var(--ease-out-soft) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
+/* Typing caret at the end of the last streamed block */
+.caret > div > :last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--color-brand);
+  animation: blink 1s steps(2) infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Range input in ledger style */
+input[type="range"].ledger-range {
+  accent-color: var(--color-brand);
+  height: 28px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

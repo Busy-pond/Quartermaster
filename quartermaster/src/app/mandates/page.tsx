@@ -1,0 +1,119 @@
+import Link from "next/link";
+import { desc, eq } from "drizzle-orm";
+import { db, schema } from "@/lib/db";
+import { demoOrg } from "@/lib/session";
+import { mandateUsage } from "@/lib/purchases";
+import { money, shortDate, STATUS_STYLE } from "@/lib/format";
+import { BudgetBar } from "@/components/budget-bar";
+
+export default async function MandatesPage() {
+  const org = await demoOrg();
+  if (!org) return <p className="text-muted">Demo org not found — run <code>npm run db:seed</code>.</p>;
+
+  const [mandates, events, payments] = await Promise.all([
+    db().query.mandates.findMany({ where: eq(schema.mandates.orgId, org.id) }),
+    db().query.events.findMany({ where: eq(schema.events.orgId, org.id) }),
+    db().select().from(schema.payments).where(eq(schema.payments.orgId, org.id)).orderBy(desc(schema.payments.createdAt)).limit(25),
+  ]);
+  const usage = await Promise.all(mandates.map(mandateUsage));
+  const pending = payments.filter((p) => p.status === "needs_approval" || p.status === "approved");
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <p className="label">{org.name}</p>
+        <h1 className="mt-1 text-2xl font-semibold">Spending mandates</h1>
+        <p className="mt-1 text-muted">The agent can only spend inside these. Each rule is enforced in code before any PayPal call.</p>
+      </div>
+
+      {pending.length > 0 && (
+        <section>
+          <h2 className="font-medium">Waiting for you ({pending.length})</h2>
+          <div className="mt-3 space-y-2">
+            {pending.map((p) => (
+              <Link key={p.id} href={`/approve/${p.id}`} className="card flex items-center justify-between gap-3 p-4 hover:bg-paper">
+                <span>
+                  <span className="font-medium">{p.lines.map((l) => `${l.quantity}× ${l.description}`).join(", ")}</span>
+                  <span className="block text-sm text-muted">
+                    {p.vendor} · {p.decision.clause} {p.decision.outcome === "allow" ? "pre-approved" : p.decision.message}
+                  </span>
+                </span>
+                <span className="amount shrink-0 font-semibold">{money(p.totalCents, p.currency)}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="grid gap-4 md:grid-cols-2">
+        {mandates.map((m, i) => {
+          const u = usage[i];
+          const ev = events.find((e) => e.id === m.eventId);
+          return (
+            <div key={m.id} className="slip p-5">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-bold">{m.title}</h2>
+                  {ev && (
+                    <p className="text-sm text-muted">
+                      For {ev.name} on {shortDate(ev.startsAt)}
+                    </p>
+                  )}
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${m.status === "active" ? "bg-ok-soft text-ok" : "bg-paper text-muted"}`}>{m.status}</span>
+              </div>
+              <p className="mt-4 font-display text-3xl font-bold tabular-nums">
+                {money(u.remainingCents, m.currency)} <span className="text-base font-medium text-muted">left</span>
+              </p>
+              <div className="mt-2">
+                <BudgetBar capCents={m.capCents} spentCents={u.spentCents} committedCents={u.committedCents} currency={m.currency} />
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-y-1 text-sm">
+                <dt className="text-muted">Auto-approve per item</dt>
+                <dd className="amount text-right">{money(m.perItemAutoLimitCents, m.currency)}</dd>
+                <dt className="text-muted">Auto-approve per order</dt>
+                <dd className="amount text-right">{money(m.perOrderAutoLimitCents, m.currency)}</dd>
+                <dt className="text-muted">Categories</dt>
+                <dd className="text-right">{m.categories.join(", ")}</dd>
+                <dt className="text-muted">Expires</dt>
+                <dd className="text-right">{shortDate(m.expiresAt)}</dd>
+              </dl>
+            </div>
+          );
+        })}
+      </section>
+
+      <section>
+        <h2 className="font-medium">Recent payments</h2>
+        <div className="card mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-muted">
+                <th className="px-4 py-2 font-medium">Items</th>
+                <th className="px-4 py-2 font-medium">Vendor</th>
+                <th className="px-4 py-2 font-medium">Status</th>
+                <th className="px-4 py-2 text-right font-medium">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((p) => (
+                <tr key={p.id} className="border-t border-line">
+                  <td className="px-4 py-2">
+                    <Link href={`/receipts/${p.id}`} className="hover:underline">
+                      {p.lines.map((l) => l.description).join(", ")}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2 text-muted">{p.vendor}</td>
+                  <td className="px-4 py-2">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[p.status].cls}`}>{STATUS_STYLE[p.status].label}</span>
+                  </td>
+                  <td className="amount px-4 py-2 text-right">{money(p.totalCents, p.currency)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
