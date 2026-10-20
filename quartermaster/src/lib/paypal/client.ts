@@ -175,6 +175,19 @@ export const createPayout = (args: { senderBatchId: string; receiverEmail: strin
     },
   });
 
+export interface PayoutBatch {
+  batch_header: { payout_batch_id: string; batch_status: string };
+  items?: {
+    payout_item_id: string;
+    transaction_status: string; // SUCCESS, PENDING, UNCLAIMED, FAILED, RETURNED, BLOCKED, ONHOLD, DENIED, REFUNDED
+    payout_item?: { sender_item_id?: string };
+    errors?: { name?: string; message?: string };
+  }[];
+}
+
+/** Reads a payout batch and its items, so the app can confirm a reimbursement without waiting for the webhook. */
+export const getPayout = (batchId: string) => call<PayoutBatch>("GET", `/v1/payments/payouts/${encodeURIComponent(batchId)}`);
+
 // ---------------------------------------------------------------- Webhooks
 
 /** Verifies a webhook with PayPal's verify-webhook-signature endpoint. */

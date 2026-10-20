@@ -23,6 +23,8 @@ export function RoleButton({ role, label, next, className }: { role: "member" | 
           }
           router.push(next);
           router.refresh();
+          // The layout keeps this button mounted across the switch; don't leave it stuck on "Signing in…".
+          setTimeout(() => setBusy(false), 1500);
         }}
       >
         {busy ? "Signing in…" : label}

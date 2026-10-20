@@ -30,21 +30,43 @@ export function toEngineMandate(m: MandateRow): Mandate {
   };
 }
 
-/** Money already spent or committed under a mandate (optionally ignoring one payment). */
-export async function loadLedger(mandateId: string, now: Date, excludePaymentId?: string): Promise<Ledger> {
+/**
+ * Money already spent or committed under a mandate, from purchases AND reimbursements
+ * (optionally ignoring the one being re-checked).
+ * Spent = captured purchases + paid reimbursements. Committed = pre-approved purchases + payouts in flight.
+ */
+export async function loadLedger(mandateId: string, now: Date, excludePaymentId?: string, excludeReimbursementId?: string): Promise<Ledger> {
   const conds = [eq(schema.payments.mandateId, mandateId), inArray(schema.payments.status, ["captured", "approved"])];
   if (excludePaymentId) conds.push(ne(schema.payments.id, excludePaymentId));
-  const rows = await db()
-    .select()
-    .from(schema.payments)
-    .where(and(...conds))
-    .orderBy(desc(schema.payments.createdAt));
+  const rconds = [eq(schema.reimbursements.mandateId, mandateId), inArray(schema.reimbursements.status, ["paid", "approved"])];
+  if (excludeReimbursementId) rconds.push(ne(schema.reimbursements.id, excludeReimbursementId));
+  const [rows, rrows] = await Promise.all([
+    db()
+      .select()
+      .from(schema.payments)
+      .where(and(...conds))
+      .orderBy(desc(schema.payments.createdAt)),
+    db()
+      .select({
+        status: schema.reimbursements.status,
+        totalCents: schema.reimbursements.totalCents,
+        vendor: schema.reimbursements.vendor,
+        lines: schema.reimbursements.lines,
+        createdAt: schema.reimbursements.createdAt,
+      })
+      .from(schema.reimbursements)
+      .where(and(...rconds)),
+  ]);
   const windowStart = new Date(now.getTime() - SPLIT_WINDOW_MS);
+  const entries: { spent: boolean; totalCents: number; vendor: string; lines: ProposalLine[]; createdAt: Date }[] = [
+    ...rows.map((r) => ({ spent: r.status === "captured", totalCents: r.totalCents, vendor: r.vendor, lines: r.lines, createdAt: r.createdAt })),
+    ...rrows.map((r) => ({ spent: r.status === "paid", totalCents: r.totalCents ?? 0, vendor: r.vendor ?? "", lines: r.lines ?? [], createdAt: r.createdAt })),
+  ];
   return {
-    spentCents: rows.filter((r) => r.status === "captured").reduce((s, r) => s + r.totalCents, 0),
-    committedCents: rows.filter((r) => r.status === "approved").reduce((s, r) => s + r.totalCents, 0),
-    recent: rows
-      .filter((r) => r.createdAt >= windowStart)
+    spentCents: entries.filter((r) => r.spent).reduce((s, r) => s + r.totalCents, 0),
+    committedCents: entries.filter((r) => !r.spent).reduce((s, r) => s + r.totalCents, 0),
+    recent: entries
+      .filter((r) => r.createdAt >= windowStart && r.vendor)
       .flatMap((r) => [...new Set(r.lines.map((l) => l.category))].map((category) => ({
         vendor: r.vendor,
         category,

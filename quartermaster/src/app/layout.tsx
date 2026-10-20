@@ -43,6 +43,7 @@ async function Nav() {
                 <span className="block text-xs text-muted">{me.role === "treasurer" ? "Treasurer" : "Volunteer"}</span>
               </span>
               <RoleButton
+                key={me.id}
                 role={me.role === "treasurer" ? "member" : "treasurer"}
                 label={me.role === "treasurer" ? "Switch to volunteer" : "Switch to treasurer"}
                 next={me.role === "treasurer" ? "/chat" : "/mandates"}

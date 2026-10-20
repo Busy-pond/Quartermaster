@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import type { Decision, ProposalLine } from "@/lib/mandates/engine";
+import type { ExtractedReceipt, ReceiptCheck } from "@/lib/reimbursements/receipt";
 
 const id = () => text("id").primaryKey().$defaultFn(() => crypto.randomUUID());
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -133,23 +134,50 @@ export const payments = pgTable(
   (t) => [index("payments_mandate").on(t.mandateId), index("payments_order").on(t.paypalOrderId)],
 );
 
-export const reimbursements = pgTable("reimbursements", {
-  id: id(),
-  orgId: text("org_id").notNull().references(() => orgs.id),
-  memberId: text("member_id").notNull().references(() => members.id),
-  mandateId: text("mandate_id").references(() => mandates.id),
-  receiptImage: text("receipt_image"),
-  extracted: jsonb("extracted"),
-  totalCents: integer("total_cents"),
-  currency: text("currency"),
-  duplicateScore: real("duplicate_score"),
-  decision: jsonb("decision").$type<Decision>(),
-  status: text("status", { enum: ["submitted", "needs_approval", "approved", "paid", "rejected", "failed"] })
-    .notNull()
-    .default("submitted"),
-  payoutBatchId: text("payout_batch_id"),
-  createdAt: createdAt(),
-});
+export type ReimbursementStatus = "submitted" | "needs_approval" | "approved" | "paid" | "rejected" | "failed";
+
+/**
+ * Snap-to-reimburse. Status: needs_approval (waiting for the treasurer) → approved
+ * (payout sent, counts as committed) → paid (PayPal confirmed, counts as spent).
+ * rejected = blocked by a check or the treasurer; failed = PayPal refused the payout.
+ */
+export const reimbursements = pgTable(
+  "reimbursements",
+  {
+    id: id(),
+    orgId: text("org_id").notNull().references(() => orgs.id),
+    memberId: text("member_id").notNull().references(() => members.id),
+    mandateId: text("mandate_id").references(() => mandates.id),
+    // Compressed JPEG as a data URL (about 200–400 KB), so no file storage is needed
+    receiptImage: text("receipt_image"),
+    imageHash: text("image_hash"),
+    extracted: jsonb("extracted").$type<ExtractedReceipt>(),
+    merchant: text("merchant"),
+    receiptDate: text("receipt_date"), // YYYY-MM-DD as printed
+    vendor: text("vendor"),
+    lines: jsonb("lines").$type<ProposalLine[]>(),
+    totalCents: integer("total_cents"),
+    currency: text("currency"),
+    note: text("note"),
+    duplicateScore: real("duplicate_score"),
+    duplicateOf: text("duplicate_of"),
+    checks: jsonb("checks").$type<ReceiptCheck[]>(),
+    decision: jsonb("decision").$type<Decision>(),
+    status: text("status").$type<ReimbursementStatus>().notNull().default("submitted"),
+    rejectedReason: text("rejected_reason"),
+    payeeEmail: text("payee_email"),
+    payoutBatchId: text("payout_batch_id"),
+    payoutItemId: text("payout_item_id"),
+    payoutStatus: text("payout_status"),
+    approvedBy: text("approved_by").references(() => members.id),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    traceId: text("trace_id").notNull().default(sql`gen_random_uuid()::text`),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("reimbursements_mandate").on(t.mandateId), index("reimbursements_batch").on(t.payoutBatchId), index("reimbursements_org_hash").on(t.orgId, t.imageHash)],
+);
 
 export const auditEvents = pgTable(
   "audit_events",

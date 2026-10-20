@@ -57,7 +57,9 @@ npm run dev                  # http://localhost:3000
 | `GOOGLE_GENERATIVE_AI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) |
 | `CHANNEL3_API_KEY` | [Channel3](https://trychannel3.com/developers) (hackathon promo code on the Devpost sponsor page). Optional: without it, labelled sample products are used |
 
-Webhook events to subscribe to: `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.REFUNDED`, `CHECKOUT.ORDER.APPROVED`.
+Webhook events to subscribe to: `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.REFUNDED`, `CHECKOUT.ORDER.APPROVED`, and for reimbursements `PAYMENT.PAYOUTS-ITEM.SUCCEEDED`, `PAYMENT.PAYOUTS-ITEM.FAILED`, `PAYMENT.PAYOUTS-ITEM.UNCLAIMED`, `PAYMENT.PAYOUTSBATCH.SUCCESS`.
+
+PayPal sandbox notes: create the Merchant app on a **US** sandbox business account, pay with a **US** sandbox personal account (not the business one), and tick **Payouts** under the app's Features. If `cloudflared` can't connect (QUIC/UDP blocked), run `cloudflared tunnel --protocol http2 --url http://localhost:3000`.
 
 ```bash
 npm test          # mandate engine unit tests
@@ -80,7 +82,7 @@ Full progress is tracked in [flow.md](flow.md), and the reasoning behind each de
 - [x] Signature-verified PayPal webhooks, stored by event id (idempotent)
 - [x] Trust receipts with options compared, rules applied, PayPal IDs and a timeline
 - [x] Treasurer view of mandates, budgets and pending approvals; `/status` page for integrations
-- [ ] Snap-to-reimburse with PayPal Payouts
+- [x] Snap-to-reimburse: Gemini reads the receipt photo, duplicate and receipt checks, mandate engine, treasurer approval, PayPal Payouts, confirmed by webhook or polling
 - [ ] Policy search (pgvector → Elastic), KERNEL live price verification, Zapier approvals
 - [ ] AG Studio treasurer dashboard, MCP server, Postman collection, APIMatic SDK
 

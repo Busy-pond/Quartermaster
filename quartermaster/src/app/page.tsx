@@ -25,6 +25,12 @@ export default function Home() {
             <RoleButton role="treasurer" label="Try it as the treasurer" next="/mandates" className="btn-ghost px-5! py-3! text-base!" />
           </div>
           <p className="mt-4 text-sm text-muted">Demo team: Riverside Cleanup Crew. PayPal runs in sandbox, so no real money moves.</p>
+          <p className="mt-2 text-sm">
+            Paid out of pocket?{" "}
+            <a href="/reimburse" className="font-medium text-brand underline">
+              Snap the receipt and get paid back
+            </a>
+          </p>
         </div>
 
         <div>

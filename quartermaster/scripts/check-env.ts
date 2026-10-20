@@ -29,10 +29,11 @@ const pgUrl = (pooled: boolean) => (v: string) => {
 const checks: Check[] = [
   { name: "DATABASE_URL", required: true, hint: "Neon console → your project → Connect → copy the connection string with pooling ON", test: pgUrl(true) },
   { name: "DATABASE_URL_DIRECT", required: false, hint: "Neon console → Connect → turn pooling OFF → copy", test: pgUrl(false) },
-  { name: "PAYPAL_CLIENT_ID", required: false, hint: "developer.paypal.com → Apps & Credentials → Sandbox → your app" },
-  { name: "PAYPAL_CLIENT_SECRET", required: false, hint: "same place as the client ID (click Show)" },
-  { name: "GOOGLE_GENERATIVE_AI_API_KEY", required: false, hint: "aistudio.google.com/apikey" },
+  { name: "PAYPAL_CLIENT_ID", required: true, hint: "developer.paypal.com → Apps & Credentials → Sandbox → your Merchant app on a US business account" },
+  { name: "PAYPAL_CLIENT_SECRET", required: true, hint: "same place as the client ID (click Show)" },
+  { name: "GOOGLE_GENERATIVE_AI_API_KEY", required: true, hint: "aistudio.google.com/apikey" },
   { name: "SANDBOX_PAYEE_EMAIL", required: false, hint: "developer.paypal.com → Testing tools → Sandbox accounts → a Business account email" },
+  { name: "SANDBOX_VOLUNTEER_EMAIL", required: false, hint: "Testing tools → Sandbox accounts → your US Personal account email (receives reimbursements)" },
   { name: "PAYPAL_WEBHOOK_ID", required: false, hint: "only needed once you add a webhook URL (Day 2)" },
   { name: "CHANNEL3_API_KEY", required: false, hint: "optional — sample products are used without it" },
 ];
