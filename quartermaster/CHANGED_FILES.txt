@@ -1,23 +1,37 @@
-Quartermaster update 2026-10-16.6 (changes since 2026-10-16.5)
-Extract into your project folder and replace files when asked. No reinstall needed.
+Quartermaster update 2026-10-20.1 (changes since 2026-10-16.6)
+Extract INTO your quartermaster folder (the one with package.json) and replace files when asked.
+Then run:  npm run db:push   (NOT npm run setup, which wipes the demo data)
 
-Changed or new files:
-  decision.md
+New files:
+  src/app/reimburse/page.tsx
+  src/app/reimbursements/[id]/page.tsx
+  src/app/api/reimbursements/route.ts
+  src/app/api/reimbursements/[id]/approve/route.ts
+  src/app/api/reimbursements/[id]/reject/route.ts
+  src/app/api/reimbursements/[id]/status/route.ts
+  src/components/receipt-upload.tsx
+  src/components/reimbursement-actions.tsx
+  src/lib/reimbursements/receipt.ts
+  src/lib/reimbursements/receipt.test.ts
+  src/lib/reimbursements/extract.ts
+  src/lib/reimbursements/service.ts
+  src/lib/reimbursements/labels.ts
+  src/lib/units.test.ts
+
+Changed files:
+  CHANGED_FILES.txt
+  README.md
   flow.md
-  src/app/approve/[id]/page.tsx
-  src/app/chat/page.tsx
-  src/app/globals.css
+  next.config.ts
+  scripts/check-env.ts
+  src/app/api/webhooks/paypal/route.ts
   src/app/layout.tsx
   src/app/mandates/page.tsx
   src/app/page.tsx
-  src/app/receipts/[id]/page.tsx
-  src/components/budget-bar.tsx
-  src/components/decision.tsx
-  src/components/mandate-simulator.tsx
   src/components/nav-links.tsx
-  src/components/paypal-button.tsx
-  src/components/stamp.tsx
-  src/lib/agent/tools.ts
+  src/components/role-switch.tsx
+  src/lib/db/schema.ts
+  src/lib/flags.ts
+  src/lib/paypal/client.ts
   src/lib/purchases.ts
-  src/lib/use-tween.ts
   src/lib/version.ts

@@ -9,6 +9,7 @@ import { db, schema } from "@/lib/db";
 import type { PaymentStatus } from "@/lib/db/schema";
 import { verifyWebhookSignature } from "@/lib/paypal/client";
 import { audit } from "@/lib/purchases";
+import { applyPayoutStatus, getReimbursement, syncPayout } from "@/lib/reimbursements/service";
 
 export const dynamic = "force-dynamic";
 
@@ -46,12 +47,49 @@ export async function POST(req: Request) {
   if (inserted.length === 0) return NextResponse.json({ ok: true, duplicate: true });
 
   try {
-    await apply(event);
+    if (event.event_type.startsWith("PAYMENT.PAYOUTS")) await applyPayout(event);
+    else await apply(event);
   } catch (e) {
     // Stored already; log and still 200 so a bug here does not cause retry storms.
     console.error("Webhook handling failed", event.event_type, e);
   }
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * Payouts (reimbursements). Item events carry the item status and our reimbursement id
+ * as sender_item_id; batch events only say the batch finished, so we ask PayPal for the items.
+ */
+interface PayoutResource {
+  payout_item_id?: string;
+  payout_batch_id?: string;
+  transaction_status?: string;
+  payout_item?: { sender_item_id?: string };
+  batch_header?: { payout_batch_id?: string; batch_status?: string };
+}
+
+async function applyPayout(event: PayPalEvent) {
+  const res = event.resource as unknown as PayoutResource;
+  const reimbursementId = res.payout_item?.sender_item_id;
+  const batchId = res.payout_batch_id ?? res.batch_header?.payout_batch_id;
+  const r =
+    (reimbursementId && (await getReimbursement(reimbursementId))) ||
+    (batchId && (await db().query.reimbursements.findFirst({ where: eq(schema.reimbursements.payoutBatchId, batchId) }))) ||
+    undefined;
+  if (!r) return;
+
+  if (res.transaction_status) await applyPayoutStatus(r, { itemStatus: res.transaction_status, itemId: res.payout_item_id, source: "webhook" });
+  else await syncPayout(r);
+
+  await audit({
+    orgId: r.orgId,
+    traceId: r.traceId,
+    paymentId: r.id,
+    actor: "webhook",
+    type: event.event_type,
+    message: event.summary ?? event.event_type,
+    payload: { eventId: event.id, batchId, itemId: res.payout_item_id, status: res.transaction_status ?? res.batch_header?.batch_status },
+  });
 }
 
 async function findPayment(event: PayPalEvent) {

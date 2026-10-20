@@ -32,9 +32,16 @@ export function integrations(): Integration[] {
       fallback: "Capture result is still saved from the capture call",
     },
     {
+      key: "payouts",
+      name: "PayPal Payouts",
+      role: "Reimbursements to volunteers",
+      state: has("PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "SANDBOX_VOLUNTEER_EMAIL") ? "live" : "off",
+      fallback: "Set SANDBOX_VOLUNTEER_EMAIL to a US sandbox personal account",
+    },
+    {
       key: "ai",
       name: "Gemini (Google AI Studio)",
-      role: "Agent reasoning and tool calling",
+      role: "Agent reasoning, tool calling and reading receipt photos",
       state: has("GOOGLE_GENERATIVE_AI_API_KEY") ? "live" : "off",
       fallback: "None — the agent needs a model",
     },
