@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/chat", label: "Request" },
   { href: "/reimburse", label: "Reimburse" },
   { href: "/mandates", label: "Mandates" },
+  { href: "/treasurer", label: "Dashboard" },
   { href: "/status", label: "Status" },
 ];
 

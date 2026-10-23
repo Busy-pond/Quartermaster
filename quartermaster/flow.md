@@ -25,6 +25,14 @@ Updated every time something is built or changed. The reasons behind each choice
 
 Honest summary: the whole money path is proven with real sandbox money. Agent → mandate engine → treasurer approval → PayPal capture → signed webhook → trust receipt all work, and so do refunds (webhook marks the order refunded and the budget gets the money back) and PayPal Payouts (a $1 test payout reached the personal account). Fake webhooks are rejected. What's left is building Flows B, C, E and F, deploying, and the submission items.
 
+### Day 12 (Oct 23): treasurer dashboard on AG Grid Community
+| Step | Result |
+|---|---|
+| `/treasurer` renders with live data | ✅ checked in Chrome: queue (1), 2 envelopes (Beach 99.9% used, $0.83 left), 3 charts, 18 payments, 7 reimbursements |
+| Phone width (400 px) | ✅ no page overflow; grids scroll inside their frames |
+| Ledger maths | ✅ 6 unit tests (spent/committed, refunds excluded, zero-filled days) |
+| Approve from the grid | ✅ clicked in Chrome as the treasurer (signed link sign-in): $42.17 payout `Q8L8SDP74Y4M2` → paid |
+
 ### Days 10–11 (Oct 23): KERNEL live checks and approval notices
 | Step | Result |
 |---|---|
@@ -235,7 +243,7 @@ Green = done and verified · amber = written, not run · dashed = not started
 | # | Step | Status |
 |---|---|---|
 | E1 | Mandates, remaining budget, pending approvals, recent payments | 🟡 `src/app/mandates/page.tsx` |
-| E2 | AG Grid Community dashboard with charts and a custom theme | ⬜ Day 12 |
+| E2 | AG Grid Community dashboard with charts and a custom theme | ✅ `/treasurer` (Oct 23) |
 | E3 | AG Studio with 3 custom widgets | ⬜ Day 17 (trial starts Nov 1) |
 | E4 | Ask a question, get a widget (Studio Agent Framework) | ⬜ Day 18 |
 
@@ -263,7 +271,7 @@ Green = done and verified · amber = written, not run · dashed = not started
 | 9 | Oct 24 | Policy and history search (pgvector) | ✅ done Oct 23: policy clauses, purchase history, duplicate receipts by meaning |
 | 10 | Oct 25 | KERNEL live verification | 🟡 written Oct 23; waiting for the KERNEL key |
 | 11 | Oct 26 | Zapier and Resend approvals | ✅ signed links verified · 🟡 channels wait for your Zapier/Slack/Resend keys |
-| 12 | Oct 27 | AG Grid Community dashboard | ⬜ |
+| 12 | Oct 27 | AG Grid Community dashboard | ✅ done Oct 23 |
 | 13 | Oct 28 | Subscriptions, invoicing, refund button | ⬜ |
 | 14 | Oct 29 | MCP server | ⬜ |
 | 15 | Oct 30 | OpenAPI, Postman, APIMatic SDK | ⬜ |
