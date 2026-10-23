@@ -8,12 +8,18 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        # The app lives in a subfolder of the repo.
+        working-directory: quartermaster
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+          cache: npm
+          cache-dependency-path: quartermaster/package-lock.json
+      - run: npm ci --no-audit --no-fund
       - run: npm test
       - run: npm run build
       - run: npm run typecheck
