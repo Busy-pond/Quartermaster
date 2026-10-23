@@ -46,6 +46,13 @@ export function integrations(): Integration[] {
       fallback: "None — the agent needs a model",
     },
     {
+      key: "search",
+      name: "Policy and history search (pgvector)",
+      role: "Gemini embeddings in Neon: policy clauses, past purchases, duplicate receipts",
+      state: flags.embeddings() ? "live" : "fallback",
+      fallback: "Keyword matching over the same policy and purchases",
+    },
+    {
       key: "channel3",
       name: "Channel3",
       role: "Product search across retailers",
@@ -57,4 +64,5 @@ export function integrations(): Integration[] {
 
 export const flags = {
   channel3: () => on("CHANNEL3_ENABLED") && has("CHANNEL3_API_KEY"),
+  embeddings: () => on("EMBEDDINGS_ENABLED") && has("GOOGLE_GENERATIVE_AI_API_KEY"),
 };

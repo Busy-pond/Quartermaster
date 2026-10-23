@@ -14,11 +14,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:push": "drizzle-kit push",
+    "db:push": "tsx scripts/db-push.ts",
     "db:seed": "tsx scripts/seed.ts",
     "check:env": "tsx scripts/check-env.ts",
-    "setup": "npm run check:env && npm run db:push && npm run db:seed",
-    "spike:payout": "tsx scripts/spike-payout.ts"
+    "setup": "npm run check:env && npm run db:vector && npm run db:push && npm run db:migrate && npm run db:seed",
+    "spike:payout": "tsx scripts/spike-payout.ts",
+    "db:vector": "tsx scripts/db-vector.ts",
+    "db:index": "tsx scripts/index-search.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "3.0.134",

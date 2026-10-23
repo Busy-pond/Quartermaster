@@ -1,7 +1,10 @@
 import { sql } from "drizzle-orm";
-import { integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, index, vector } from "drizzle-orm/pg-core";
 import type { Decision, ProposalLine } from "@/lib/mandates/engine";
 import type { ExtractedReceipt, ReceiptCheck } from "@/lib/reimbursements/receipt";
+
+/** Gemini embeddings are requested at this size (pgvector, Day 9). Changing it means re-indexing. */
+export const EMBEDDING_DIMENSIONS = 768;
 
 const id = () => text("id").primaryKey().$defaultFn(() => crypto.randomUUID());
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -202,6 +205,39 @@ export const webhookEvents = pgTable("webhook_events", {
   payload: jsonb("payload").notNull(),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** The spending policy, one row per numbered clause, embedded for searchPolicy. Rebuilt by `npm run db:index`. */
+export const policyChunks = pgTable(
+  "policy_chunks",
+  {
+    id: id(),
+    orgId: text("org_id").notNull().references(() => orgs.id),
+    clause: text("clause").notNull(), // "3.3"
+    section: text("section").notNull(),
+    text: text("text").notNull(),
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("policy_chunks_org_clause").on(t.orgId, t.clause), index("policy_chunks_embedding").using("hnsw", t.embedding.op("vector_cosine_ops"))],
+);
+
+/**
+ * Embeddings of purchases (what was bought) and reimbursements (the receipt fingerprint),
+ * kept apart from those tables so their everyday queries don't carry 768 floats per row.
+ */
+export const searchIndex = pgTable(
+  "search_index",
+  {
+    id: id(),
+    orgId: text("org_id").notNull().references(() => orgs.id),
+    kind: text("kind", { enum: ["purchase", "reimbursement"] }).notNull(),
+    refId: text("ref_id").notNull(), // payments.id or reimbursements.id
+    text: text("text").notNull(),
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("search_index_kind_ref").on(t.kind, t.refId), index("search_index_org_kind").on(t.orgId, t.kind), index("search_index_embedding").using("hnsw", t.embedding.op("vector_cosine_ops"))],
+);
 
 /** Small key-value cache for third-party responses (Channel3, later KERNEL). */
 export const apiCache = pgTable("api_cache", {

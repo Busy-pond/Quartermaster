@@ -10,6 +10,7 @@ import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { evaluate, SPLIT_WINDOW_MS, type Decision, type Ledger, type Mandate, type ProposalLine } from "@/lib/mandates/engine";
 import { captureIdOf, captureOrder, createOrder } from "@/lib/paypal/client";
+import { indexPurchase } from "@/lib/integrations/search";
 
 type MandateRow = typeof schema.mandates.$inferSelect;
 type PaymentRow = typeof schema.payments.$inferSelect;
@@ -141,6 +142,7 @@ export async function proposePurchase(
     })
     .returning();
 
+  await indexPurchase(payment); // purchase-history search; never fails the proposal
   await audit({
     orgId: input.orgId,
     traceId: input.traceId,

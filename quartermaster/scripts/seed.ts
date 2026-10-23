@@ -8,6 +8,7 @@ config({ path: ".env.local" });
 import { eq, inArray } from "drizzle-orm";
 import { db, schema } from "../src/lib/db";
 import { evaluate } from "../src/lib/mandates/engine";
+import { backfillIndex, indexPolicy } from "../src/lib/integrations/search";
 
 const SLUG = "riverside";
 const dollars = (n: number) => Math.round(n * 100);
@@ -19,6 +20,8 @@ async function wipe() {
   const reqs = await d.select({ id: schema.purchaseRequests.id }).from(schema.purchaseRequests).where(eq(schema.purchaseRequests.orgId, org.id));
   const reqIds = reqs.map((r) => r.id);
   await d.delete(schema.auditEvents).where(eq(schema.auditEvents.orgId, org.id));
+  await d.delete(schema.searchIndex).where(eq(schema.searchIndex.orgId, org.id));
+  await d.delete(schema.policyChunks).where(eq(schema.policyChunks.orgId, org.id));
   await d.delete(schema.payments).where(eq(schema.payments.orgId, org.id));
   if (reqIds.length) await d.delete(schema.productOptions).where(inArray(schema.productOptions.requestId, reqIds));
   await d.delete(schema.purchaseRequests).where(eq(schema.purchaseRequests.orgId, org.id));
@@ -149,7 +152,11 @@ async function main() {
     });
   }
 
+  const policy = await indexPolicy(org.id);
+  const indexed = await backfillIndex(org.id);
+
   console.log(`✓ Seeded "${org.name}": ${volunteers.length + 1} members, 2 events, 2 mandates, ${history.length} past purchases`);
+  console.log(`✓ Search index: ${policy.chunks} policy clauses (${policy.embedded} embedded), ${indexed} purchases embedded`);
   console.log(`  Treasurer: ${treasurer.name}   Volunteer: ${volunteers[0].name}`);
 }
 

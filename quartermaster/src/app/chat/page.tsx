@@ -53,6 +53,8 @@ const cents = (n: number) => Math.round(n * 100);
 const TOOL_LABEL: Record<string, string> = {
   listMandates: "Reading spending mandates",
   readPolicy: "Reading the spending policy",
+  searchPolicy: "Searching the spending policy",
+  purchaseHistory: "Checking past purchases",
   searchProducts: "Searching retailers",
   checkPurchase: "Checking the budget and mandate",
   proposePurchase: "Proposing the order",
