@@ -97,9 +97,6 @@ npx -y @modelcontextprotocol/inspector@2.10.1 --cli http://localhost:3000/api/mc
 
 ## What's built so far
 
-Full progress is tracked in [flow.md](flow.md), and the reasoning behind each design choice is in [decision.md](decision.md).
-
-
 - [x] Mandate engine with 30+ unit tests (allow / needs approval / deny, split-purchase detection, cap including committed spend)
 - [x] Agent chat (Gemini via Vercel AI SDK) with tools: list mandates, read policy, search products, propose purchase
 - [x] Channel3 product search with caching and an offline sample fallback
