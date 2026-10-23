@@ -2,7 +2,7 @@
 
 Updated every time something is built or changed. The reasons behind each choice are in [decision.md](decision.md).
 
-**Last updated:** Oct 20, 2026 (late) · **Build plan position:** Days 1–6 verified; Day 8 (snap-to-reimburse) written, version 2026-10-20.1 · **Next:** install the update → `npm run db:push` → test a receipt end to end → deploy (Day 7)
+**Last updated:** Oct 23, 2026 · **Build plan position:** Days 1–6 and 8 verified; working through the remaining tasks · **Next:** see “What to do next” at the bottom
 
 ### Status key
 | Mark | Meaning |
@@ -16,7 +16,7 @@ Updated every time something is built or changed. The reasons behind each choice
 | Area | ✅ | 🟡 | ⬜ |
 |---|---|---|---|
 | Hero flow A: agent purchase | 10 | 0 | 3 |
-| Flow B: snap-to-reimburse | 0 | 6 | 0 |
+| Flow B: snap-to-reimburse | 6 | 0 | 0 |
 | Flow C: money in (dues, invoices) | 0 | 0 | 3 |
 | Flow D: refunds and exceptions | 1 | 0 | 1 (+2 optional) |
 | Flow E: treasurer dashboard | 0 | 1 | 3 |
@@ -25,7 +25,20 @@ Updated every time something is built or changed. The reasons behind each choice
 
 Honest summary: the whole money path is proven with real sandbox money. Agent → mandate engine → treasurer approval → PayPal capture → signed webhook → trust receipt all work, and so do refunds (webhook marks the order refunded and the budget gets the money back) and PayPal Payouts (a $1 test payout reached the personal account). Fake webhooks are rejected. What's left is building Flows B, C, E and F, deploying, and the submission items.
 
-### Build 2026-10-20.1: snap-to-reimburse and fixes (written, not run yet)
+### Eighth run (Oct 23): snap-to-reimburse verified end to end
+| Step | Result |
+|---|---|
+| `npm test`, `npm run typecheck`, `npm run build` | ✅ 70/70 tests (engine 34, units 16, receipts 20), types clean, build clean |
+| Database columns for reimbursements | ✅ already pushed to Neon |
+| `npm run spike:payout` ($1 to the personal sandbox account) | ✅ batch PENDING → SUCCESS in about 20 s |
+| Home Depot receipt, $42.17, Beach Cleanup mandate | ✅ Gemini read every line, tax, date and domain; R1–R5 passed · ✅ **blocked under M7**: the mandate has only $0.83 left after earlier tests |
+| Walmart receipt, $27.81, Winter Food Drive mandate | ✅ read in 22 s → needs treasurer → approved → payout `9G526YC9UN5D8` → **paid** about 22 s after approval |
+| Same Walmart photo again | ✅ rejected: "R3: The same photo was already submitted", linked to the first one |
+| `/reimbursements/[id]` and `/mandates` | ✅ load (200) |
+| Found along the way | Running `next build` while `npm run dev` runs breaks the dev server (D43): use `NEXT_DIST_DIR=.next-check npm run build` · CI never ran because the workflow sat in the app folder (D42, fixed) |
+| Still to try | A photo from your phone through the tunnel (camera capture and in-browser shrinking) |
+
+### Build 2026-10-20.1: snap-to-reimburse and fixes
 | Area | Status |
 |---|---|
 | `/reimburse`: photo upload (opens the phone camera), shrinks the photo in the browser, pick the budget, optional note | 🟡 |
@@ -173,14 +186,13 @@ Green = done and verified · amber = written, not run · dashed = not started
 ## Flow B: snap-to-reimburse (Day 8)
 | # | Step | Status |
 |---|---|---|
-| B1 | Volunteer uploads a receipt photo from their phone | 🟡 `src/app/reimburse/page.tsx`, `src/components/receipt-upload.tsx` |
-| B2 | Gemini vision extracts merchant, date, items and total | 🟡 `src/lib/reimbursements/extract.ts` (hand-typed fallback) |
-| B3 | Duplicate check: exact photo hash, plus same merchant + date + total | ✅ logic tested · 🟡 in the app. pgvector similarity stays a Day 9 extra |
-| B4 | Receipt checks R1–R5 and the mandate engine | ✅ logic tested · 🟡 in the app (`src/lib/reimbursements/receipt.ts`) |
-| B5 | Treasurer one-tap approval → PayPal Payouts to the volunteer | 🟡 `src/lib/reimbursements/service.ts` (Payouts verified by hand ✅) |
-| B6 | Payout webhook or polling → marked paid, timer shown | 🟡 webhook route + `/api/reimbursements/[id]/status` |
+| B1 | Volunteer uploads a receipt photo from their phone | ✅ upload verified (Oct 23) · 🟡 phone camera not tried yet · `src/app/reimburse/page.tsx`, `src/components/receipt-upload.tsx` |
+| B2 | Gemini vision extracts merchant, date, items and total | ✅ two receipts read exactly (Oct 23) · `src/lib/reimbursements/extract.ts` (hand-typed fallback) |
+| B3 | Duplicate check: exact photo hash, plus same merchant + date + total | ✅ logic tested · ✅ same photo rejected in the app. pgvector similarity is Day 9 |
+| B4 | Receipt checks R1–R5 and the mandate engine | ✅ logic tested · ✅ in the app, including an M7 block (`src/lib/reimbursements/receipt.ts`) |
+| B5 | Treasurer one-tap approval → PayPal Payouts to the volunteer | ✅ $27.81 paid out (Oct 23) · `src/lib/reimbursements/service.ts` (Payouts verified by hand ✅) |
+| B6 | Payout webhook or polling → marked paid, timer shown | ✅ marked paid by polling · webhook route + `/api/reimbursements/[id]/status` |
 
-The `reimbursements` table gets new columns: run `npm run db:push` (not `npm run setup`, which wipes the demo data).
 
 ## Flow C: money in (Day 13)
 | # | Step | Status |
@@ -224,8 +236,8 @@ The `reimbursements` table gets new columns: run `npm run db:push` (not `npm run
 | 4 | Oct 19 | Channel3 search, cache, fallback | ✅ fallback and price per unit work · ⬜ live Channel3 with your key · ⬜ record real demo responses |
 | 5 | Oct 20 | Agent loop | ✅ runs end to end with the dry-run check, per-unit choices and shortfall explanation |
 | 6 | Oct 21 | Pay with guardrails, trust receipt | ✅ approval, mandate re-check, PayPal capture, webhook and paid receipt verified |
-| 7 | Oct 22 | Deploy to Render, CI, Sentry, /status | 🟡 render.yaml, CI, /status, /api/health · ⬜ Sentry, live deploy |
-| 8 | Oct 23 | Snap-to-reimburse and Payouts | 🟡 written early (Oct 20), needs a run on your machine |
+| 7 | Oct 22 | Deploy to Render, CI, Sentry, /status | ✅ /status, /api/health · ✅ CI moved to the repo root (runs on the next push) · ⬜ Render deploy, Sentry, UptimeRobot (need the hosted URL) |
+| 8 | Oct 23 | Snap-to-reimburse and Payouts | ✅ verified end to end on Oct 23 (two receipts, one payout, one duplicate) |
 | 9 | Oct 24 | Policy and history search (pgvector) | ⬜ |
 | 10 | Oct 25 | KERNEL live verification | ⬜ |
 | 11 | Oct 26 | Zapier and Resend approvals | ⬜ |
