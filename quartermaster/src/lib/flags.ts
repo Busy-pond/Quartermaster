@@ -53,6 +53,20 @@ export function integrations(): Integration[] {
       fallback: "Keyword matching over the same policy and purchases",
     },
     {
+      key: "kernel",
+      name: "KERNEL cloud browser",
+      role: "Opens the buy link, screenshots it and reads the live price, stock and delivery",
+      state: flags.kernel() ? "live" : "fallback",
+      fallback: "The last cached check, labelled with its age; sample products are marked unverified",
+    },
+    {
+      key: "approvals",
+      name: "Approval notices (Zapier MCP → Slack → Resend)",
+      role: "Tells the treasurer, with a signed 72-hour link, when something needs approval",
+      state: flags.zapier() ? "live" : flags.slack() || flags.resend() ? "fallback" : "off",
+      fallback: flags.slack() || flags.resend() ? `Zapier off; using ${[flags.slack() && "Slack webhook", flags.resend() && "Resend email"].filter(Boolean).join(" and ")}` : "In-app list on the Mandates page only",
+    },
+    {
       key: "channel3",
       name: "Channel3",
       role: "Product search across retailers",
@@ -65,4 +79,8 @@ export function integrations(): Integration[] {
 export const flags = {
   channel3: () => on("CHANNEL3_ENABLED") && has("CHANNEL3_API_KEY"),
   embeddings: () => on("EMBEDDINGS_ENABLED") && has("GOOGLE_GENERATIVE_AI_API_KEY"),
+  kernel: () => on("KERNEL_ENABLED") && has("KERNEL_API_KEY"),
+  zapier: () => on("ZAPIER_ENABLED") && has("ZAPIER_MCP_URL"),
+  slack: () => on("SLACK_ENABLED") && has("SLACK_WEBHOOK_URL"),
+  resend: () => on("RESEND_ENABLED") && has("RESEND_API_KEY"),
 };

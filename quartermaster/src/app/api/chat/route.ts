@@ -6,6 +6,7 @@ import { buildTools, mandateSummaries } from "@/lib/agent/tools";
 import { systemPrompt } from "@/lib/agent/prompt";
 import { SPENDING_POLICY } from "@/lib/policy";
 import { chunkPolicy } from "@/lib/search/text";
+import { flags } from "@/lib/flags";
 import { currentMember } from "@/lib/session";
 
 export const maxDuration = 60;
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
       orgName: org.name,
       today: new Date().toISOString().slice(0, 10),
       mandates: await mandateSummaries(org.id),
+      kernelLive: flags.kernel(),
       policySections: [...new Set(chunkPolicy(SPENDING_POLICY).map((c) => `${c.clause.split(".")[0]}. ${c.section}`))],
     }),
     // Keeps each tool call's thought signature (stored on the UI message parts), which Gemini 3 requires.

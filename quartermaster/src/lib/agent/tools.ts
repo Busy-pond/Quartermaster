@@ -15,6 +15,9 @@ import { searchProducts } from "@/lib/integrations/channel3";
 import { mandateUsage, previewPurchase, proposePurchase } from "@/lib/purchases";
 import { CLAUSES, type Decision } from "@/lib/mandates/engine";
 import { search } from "@/lib/integrations/search";
+import { loadVerifications, verifyOptions } from "@/lib/verify/options";
+import { flags } from "@/lib/flags";
+import { notifyLater } from "@/lib/approvals/notify";
 import { unitsPerListing } from "@/lib/units";
 
 export interface AgentContext {
@@ -51,6 +54,9 @@ async function resolve(ctx: AgentContext, items: z.infer<typeof OrderInput>["ite
     .from(schema.productOptions)
     .where(and(eq(schema.productOptions.requestId, ctx.requestId), inArray(schema.productOptions.id, ids)));
   const byId = new Map<string, OptionRow>(opts.map((o) => [o.id, o]));
+  // A KERNEL live check (verifyProducts) replaces the search price when the retailer's price moved more than 2%.
+  const verified = await loadVerifications(ids);
+  const priceOf = (o: OptionRow) => verified.get(o.id)?.useCents ?? o.priceCents;
   const missing = items.filter((i) => !byId.has(i.optionId)).map((i) => i.optionId);
   if (missing.length) return { error: `Unknown optionId(s) ${missing.join(", ")} — use ids returned by searchProducts in this conversation.` } as const;
   const chosen = items.map((i) => ({ ...i, option: byId.get(i.optionId)! }));
@@ -59,9 +65,10 @@ async function resolve(ctx: AgentContext, items: z.infer<typeof OrderInput>["ite
     return { error: `One order = one vendor. Got ${vendors.join(", ")}. Check and propose each vendor's items as a separate order.` } as const;
   return {
     byId,
+    verified,
     vendor: vendors[0],
     currency: chosen[0].option.currency,
-    lines: chosen.map((c) => ({ description: c.option.title, category: c.category, unitPriceCents: c.option.priceCents, quantity: c.listings })),
+    lines: chosen.map((c) => ({ description: c.option.title, category: c.category, unitPriceCents: priceOf(c.option), quantity: c.listings })),
     units: chosen.map((c) => ({ title: c.option.title, units: c.listings * unitsPerListing(c.option.title) })),
   } as const;
 }
@@ -102,7 +109,7 @@ export async function mandateSummaries(orgId: string) {
 }
 
 export function buildTools(ctx: AgentContext) {
-  return {
+  const tools = {
     listMandates: tool({
       description: "Re-read the org's active spending mandates and remaining budgets. They are already in your instructions; only call this to refresh after a proposal.",
       inputSchema: z.object({}),
@@ -189,6 +196,38 @@ export function buildTools(ctx: AgentContext) {
       },
     }),
 
+    verifyProducts: tool({
+      description:
+        "Opens the buy pages of up to 2 options in a KERNEL cloud browser and reads the live price, stock and delivery. Call it on the options you are about to choose, before checkPurchase. If the live price moved more than 2%, checkPurchase and proposePurchase use the live price automatically.",
+      inputSchema: z.object({ optionIds: z.array(z.string()).min(1).max(2) }),
+      execute: async ({ optionIds }) => {
+        const opts = await db()
+          .select()
+          .from(schema.productOptions)
+          .where(and(eq(schema.productOptions.requestId, ctx.requestId), inArray(schema.productOptions.id, optionIds)));
+        if (opts.length === 0) return { error: "Unknown optionIds — use ids returned by searchProducts in this conversation." };
+        const v = await verifyOptions(opts);
+        return {
+          checks: opts.map((o) => {
+            const x = v.get(o.id)!;
+            return {
+              optionId: o.id,
+              title: o.title,
+              status: x.status,
+              searchPriceDollars: dollars(x.storedCents),
+              livePriceDollars: x.liveCents == null ? null : dollars(x.liveCents),
+              priceUsedDollars: dollars(x.useCents),
+              inStock: x.inStock,
+              delivery: x.deliveryText,
+              verifiedAt: x.verifiedAt,
+              source: x.source,
+              message: x.message,
+            };
+          }),
+        };
+      },
+    }),
+
     checkPurchase: tool({
       description:
         "DRY RUN: checks an order against the mandate (and the requester's own budget, if they gave one) without saving anything. Use it to find an order that fits before proposing. Call as often as needed.",
@@ -239,8 +278,26 @@ export function buildTools(ctx: AgentContext) {
           optionsConsidered: consideredOptionIds
             .map((id) => r.byId.get(id))
             .filter((o): o is OptionRow => o !== undefined)
-            .map((o) => ({ title: o.title, vendor: o.vendor, priceCents: o.priceCents, url: o.url })),
+            .map((o) => ({ title: o.title, vendor: o.vendor, priceCents: o.priceCents, url: o.url, verification: r.verified.get(o.id) ?? null })),
         });
+        if (decision.outcome === "needs_approval") {
+          const m = await db().query.mandates.findFirst({ where: eq(schema.mandates.id, mandateId) });
+          const requester = await db().query.members.findFirst({ where: eq(schema.members.id, ctx.memberId) });
+          if (m?.approverIds[0])
+            await notifyLater({
+              kind: "payment",
+              id: payment.id,
+              orgId: ctx.orgId,
+              traceId: ctx.traceId,
+              approverId: m.approverIds[0],
+              title: `${payment.lines.map((l) => `${l.quantity}× ${l.description}`).join(", ")} from ${payment.vendor}`,
+              amountCents: payment.totalCents,
+              currency: payment.currency,
+              reason: `${decision.clause}: ${decision.message}`,
+              requestedBy: requester?.name ?? "A volunteer",
+              appUrl: ctx.appUrl,
+            });
+        }
         return {
           paymentId: payment.id,
           totalDollars: dollars(payment.totalCents),
@@ -255,4 +312,9 @@ export function buildTools(ctx: AgentContext) {
       },
     }),
   };
+  // Live verification costs a model step, so the agent only gets it when KERNEL is on.
+  if (flags.kernel()) return tools;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { verifyProducts, ...withoutVerify } = tools;
+  return withoutVerify;
 }

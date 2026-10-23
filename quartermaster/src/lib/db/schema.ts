@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, index, vector } from "drizzle-orm/pg-core";
 import type { Decision, ProposalLine } from "@/lib/mandates/engine";
 import type { ExtractedReceipt, ReceiptCheck } from "@/lib/reimbursements/receipt";
+import type { OptionVerification } from "@/lib/verify/options";
 
 /** Gemini embeddings are requested at this size (pgvector, Day 9). Changing it means re-indexing. */
 export const EMBEDDING_DIMENSIONS = 768;
@@ -101,6 +102,15 @@ export const productOptions = pgTable(
   (t) => [index("product_options_request").on(t.requestId)],
 );
 
+/** An option the agent compared, as snapshotted on the payment (with its KERNEL live check, if any). */
+export interface ConsideredOption {
+  title: string;
+  vendor: string;
+  priceCents: number;
+  url?: string | null;
+  verification?: OptionVerification | null;
+}
+
 export type PaymentStatus =
   | "denied"
   | "needs_approval"
@@ -121,7 +131,7 @@ export const payments = pgTable(
     totalCents: integer("total_cents").notNull(),
     lines: jsonb("lines").$type<ProposalLine[]>().notNull(),
     // Snapshot of the options the agent considered and why it picked this one
-    optionsConsidered: jsonb("options_considered").$type<{ title: string; vendor: string; priceCents: number; url?: string | null }[]>(),
+    optionsConsidered: jsonb("options_considered").$type<ConsideredOption[]>(),
     rationale: text("rationale"),
     decision: jsonb("decision").$type<Decision>().notNull(),
     status: text("status").$type<PaymentStatus>().notNull(),

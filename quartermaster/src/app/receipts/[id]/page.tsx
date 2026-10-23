@@ -6,6 +6,8 @@ import { getMandate, getPayment, recentAudit } from "@/lib/purchases";
 import { dateTime, money, STATUS_STYLE } from "@/lib/format";
 import { DecisionPanel } from "@/components/decision";
 import { Stamp, stampFor } from "@/components/stamp";
+import { storedCheck } from "@/lib/integrations/kernel";
+import { ageLabel } from "@/lib/verify/price";
 
 const ACTOR: Record<string, string> = { agent: "Agent", human: "Person", webhook: "PayPal", system: "System" };
 
@@ -20,6 +22,15 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     p.approvedBy ? db().query.members.findFirst({ where: eq(schema.members.id, p.approvedBy) }) : null,
   ]);
   const status = STATUS_STYLE[p.status];
+  // Screenshots of KERNEL live checks, for the options that were verified
+  const shots = new Map(
+    await Promise.all(
+      (p.optionsConsidered ?? [])
+        .map((o) => o.verification?.checkKey)
+        .filter((k): k is string => !!k)
+        .map(async (k) => [k, (await storedCheck(k))?.screenshot ?? null] as const),
+    ),
+  );
   const events = timeline.filter((e) => !e.paymentId || e.paymentId === p.id);
 
   return (
@@ -66,12 +77,38 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
             {p.optionsConsidered.map((o, i) => {
               const chosen = p.lines.some((l) => l.description === o.title);
               return (
-                <li key={i} className="flex justify-between gap-3 py-2">
-                  <span className={chosen ? "font-medium" : "text-muted"}>
-                    {chosen && "✓ "}
-                    {o.title} <span className="text-muted">· {o.vendor}</span>
-                  </span>
-                  <span className="amount">{money(o.priceCents, p.currency)}</span>
+                <li key={i} className="py-2">
+                  <div className="flex justify-between gap-3">
+                    <span className={chosen ? "font-medium" : "text-muted"}>
+                      {chosen && "✓ "}
+                      {o.title} <span className="text-muted">· {o.vendor}</span>
+                    </span>
+                    <span className="amount">{money(o.priceCents, p.currency)}</span>
+                  </div>
+                  {o.verification && o.verification.status !== "unverified" && (
+                    <div className="mt-2 flex gap-3 rounded-lg bg-paper p-2">
+                      {o.verification.checkKey && shots.get(o.verification.checkKey) && (
+                        <a href={o.url ?? undefined} target="_blank" rel="noreferrer" className="shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={shots.get(o.verification.checkKey)!} alt={`Screenshot of the ${o.vendor} page`} className="h-20 w-32 rounded border border-line object-cover object-top" />
+                        </a>
+                      )}
+                      <div className="text-xs">
+                        <p className={o.verification.status === "changed" ? "font-medium text-warn" : "text-ink"}>
+                          Live check: {o.verification.liveCents != null ? money(o.verification.liveCents, p.currency) : "price not readable"}
+                          {o.verification.status === "changed" && " (price changed; the live price was used)"}
+                          {o.verification.inStock === false && " · out of stock"}
+                        </p>
+                        {o.verification.deliveryText && <p className="text-muted">{o.verification.deliveryText}</p>}
+                        {o.verification.verifiedAt && (
+                          <p className="text-muted">
+                            Verified {dateTime(o.verification.verifiedAt)} by KERNEL{o.verification.source === "cache" ? ` (cached, ${ageLabel(o.verification.verifiedAt, p.createdAt)} when proposed)` : ""}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {o.verification?.status === "unverified" && <p className="mt-1 text-xs text-muted">{o.verification.message}</p>}
                 </li>
               );
             })}
