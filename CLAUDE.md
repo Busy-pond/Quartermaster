@@ -8,3 +8,4 @@ Read flow.md and decision.md before working. Do only the task given, one step at
 - UI: reuse Stamp/DecisionPanel/BudgetBar/.slip; motion only on events; no all-caps labels.
 - Never run dev servers or tunnels in the foreground. Ask me immediately when blocked.
 - After each change: add a decision.md entry, update flow.md (🟡 = written but not run), bump APP_REVISION, pass test/typecheck/build, commit, and tell me briefly what changed and what I must do.
+-NEVER run git push.
