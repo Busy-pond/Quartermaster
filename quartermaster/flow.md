@@ -25,6 +25,18 @@ Updated every time something is built or changed. The reasons behind each choice
 
 Honest summary: the whole money path is proven with real sandbox money. Agent → mandate engine → treasurer approval → PayPal capture → signed webhook → trust receipt all work, and so do refunds (webhook marks the order refunded and the budget gets the money back) and PayPal Payouts (a $1 test payout reached the personal account). Fake webhooks are rejected. What's left is building Flows B, C, E and F, deploying, and the submission items.
 
+### Day 9 (Oct 23): policy and history search with pgvector
+| Step | Result |
+|---|---|
+| pgvector on Neon | ✅ 0.8.6 enabled (`npm run db:vector`) |
+| Tables `policy_chunks`, `search_index` + HNSW indexes | ✅ created with `npm run db:migrate` (D46: `drizzle-kit push` is unsafe on Postgres 18) |
+| `npm run db:index` | ✅ 13 policy clauses and 23 purchases/receipts embedded (gemini-embedding-2, 768 dims) |
+| searchPolicy | ✅ "two quotes" → 3.2, 3.3 · "deliveries" → 4.1 · "beer" → 2.3 · "how long for my receipt" → 5.1 |
+| purchaseHistory | ✅ "garbage bags" finds the Uline "Heavy-duty trash bags (100)" |
+| Agent: "Do we need two quotes for a $300 order of tables?" | ✅ called searchPolicy, answered "According to Policy 3.3…" and 3.2 |
+| Duplicate by meaning | ✅ a re-shot Walmart receipt matches the original at 0.957 (next best 0.725) → R3 warning with a link · ✅ 15 unit tests for chunking, keyword fallback and the threshold |
+| Not tried yet | A full chat purchase with the new parallel step (search products + policy + history); watch that it still fits in 8 steps |
+
 ### Eighth run (Oct 23): snap-to-reimburse verified end to end
 | Step | Result |
 |---|---|
@@ -171,7 +183,7 @@ Green = done and verified · amber = written, not run · dashed = not started
 |---|---|---|---|
 | A1 | One-click demo sign-in as volunteer or treasurer | ✅ works on your machine · ✕ small bug: header button can stay on "Signing in…" | `src/app/page.tsx`, `src/app/api/session/route.ts`, `role-switch.tsx` |
 | A2 | Chat with streaming replies and tool cards | ✅ works with Gemini 3.5 Flash | `src/app/chat/page.tsx`, `src/app/api/chat/route.ts` |
-| A3 | Agent reads mandates, budgets and the spending policy | ✅ | `src/lib/agent/tools.ts` (`listMandates`, `readPolicy`) |
+| A3 | Agent reads mandates, budgets and the spending policy | ✅ mandates in the prompt · ✅ policy by search with clause citations (Day 9) | `src/lib/agent/tools.ts` (`searchPolicy`, `purchaseHistory`), `src/lib/integrations/search.ts` |
 | A4 | Product search with Channel3, a 6-hour cache and a sample fallback | ✅ fallback · ✅ price per unit and pack sizes · 🟡 Channel3 live not yet seen | `src/lib/integrations/channel3.ts`, `src/lib/units.ts` |
 | A5 | Live price, stock and screenshot check with KERNEL | ⬜ | Day 10 |
 | A6 | Propose a purchase (prices taken from stored results) | ✅ dry-run check, per-unit choices, and explains a budget shortfall with the full cost (Oct 20) | `proposePurchase` / `checkPurchase` tools → `src/lib/purchases.ts` |
@@ -188,7 +200,7 @@ Green = done and verified · amber = written, not run · dashed = not started
 |---|---|---|
 | B1 | Volunteer uploads a receipt photo from their phone | ✅ upload verified (Oct 23) · 🟡 phone camera not tried yet · `src/app/reimburse/page.tsx`, `src/components/receipt-upload.tsx` |
 | B2 | Gemini vision extracts merchant, date, items and total | ✅ two receipts read exactly (Oct 23) · `src/lib/reimbursements/extract.ts` (hand-typed fallback) |
-| B3 | Duplicate check: exact photo hash, plus same merchant + date + total | ✅ logic tested · ✅ same photo rejected in the app. pgvector similarity is Day 9 |
+| B3 | Duplicate check: exact photo hash, plus same merchant + date + total | ✅ logic tested · ✅ same photo rejected in the app · ✅ pgvector similarity warns on a re-shot receipt (Day 9) |
 | B4 | Receipt checks R1–R5 and the mandate engine | ✅ logic tested · ✅ in the app, including an M7 block (`src/lib/reimbursements/receipt.ts`) |
 | B5 | Treasurer one-tap approval → PayPal Payouts to the volunteer | ✅ $27.81 paid out (Oct 23) · `src/lib/reimbursements/service.ts` (Payouts verified by hand ✅) |
 | B6 | Payout webhook or polling → marked paid, timer shown | ✅ marked paid by polling · webhook route + `/api/reimbursements/[id]/status` |
@@ -238,7 +250,7 @@ Green = done and verified · amber = written, not run · dashed = not started
 | 6 | Oct 21 | Pay with guardrails, trust receipt | ✅ approval, mandate re-check, PayPal capture, webhook and paid receipt verified |
 | 7 | Oct 22 | Deploy to Render, CI, Sentry, /status | ✅ /status, /api/health · ✅ CI moved to the repo root (runs on the next push) · ⬜ Render deploy, Sentry, UptimeRobot (need the hosted URL) |
 | 8 | Oct 23 | Snap-to-reimburse and Payouts | ✅ verified end to end on Oct 23 (two receipts, one payout, one duplicate) |
-| 9 | Oct 24 | Policy and history search (pgvector) | ⬜ |
+| 9 | Oct 24 | Policy and history search (pgvector) | ✅ done Oct 23: policy clauses, purchase history, duplicate receipts by meaning |
 | 10 | Oct 25 | KERNEL live verification | ⬜ |
 | 11 | Oct 26 | Zapier and Resend approvals | ⬜ |
 | 12 | Oct 27 | AG Grid Community dashboard | ⬜ |

@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { buildTools, mandateSummaries } from "@/lib/agent/tools";
 import { systemPrompt } from "@/lib/agent/prompt";
 import { SPENDING_POLICY } from "@/lib/policy";
+import { chunkPolicy } from "@/lib/search/text";
 import { currentMember } from "@/lib/session";
 
 export const maxDuration = 60;
@@ -55,13 +56,13 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: google(process.env.AI_MODEL ?? "gemini-3.5-flash"),
-    // Mandates and policy go in the prompt up front, which saves one or two model calls per request.
+    // Mandates go in the prompt up front (saves a model call); the policy is searched (searchPolicy) in the same step as the products.
     system: systemPrompt({
       memberName: me.name,
       orgName: org.name,
       today: new Date().toISOString().slice(0, 10),
       mandates: await mandateSummaries(org.id),
-      policy: SPENDING_POLICY,
+      policySections: [...new Set(chunkPolicy(SPENDING_POLICY).map((c) => `${c.clause.split(".")[0]}. ${c.section}`))],
     }),
     // Keeps each tool call's thought signature (stored on the UI message parts), which Gemini 3 requires.
     messages: await convertToModelMessages(messages),

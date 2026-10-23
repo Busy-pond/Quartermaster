@@ -15,7 +15,9 @@ import { audit, getMandate, loadLedger, toEngineMandate } from "@/lib/purchases"
 import { createPayout, getPayout } from "@/lib/paypal/client";
 import { money } from "@/lib/format";
 import { extractReceipt } from "./extract";
-import { duplicateScore, receiptChecks, toProposal, type ExtractedReceipt } from "./receipt";
+import { DUPLICATE_WARN, duplicateScore, receiptChecks, toProposal, type ExtractedReceipt } from "./receipt";
+import { fingerprintOf, indexReimbursement, search } from "@/lib/integrations/search";
+import { semanticDuplicate } from "@/lib/search/text";
 
 type ReimbursementRow = typeof schema.reimbursements.$inferSelect;
 type MemberRow = typeof schema.members.$inferSelect;
@@ -76,12 +78,24 @@ export async function submitReimbursement(args: { member: MemberRow; mandateId: 
     })
     .from(schema.reimbursements)
     .where(and(eq(schema.reimbursements.orgId, member.orgId), ne(schema.reimbursements.status, "rejected")));
-  const dup = duplicateScore({ imageHash, merchant: receipt.merchant, date: receipt.date, totalCents: receipt.totalCents }, prior);
+  let dup = duplicateScore({ imageHash, merchant: receipt.merchant, date: receipt.date, totalCents: receipt.totalCents }, prior);
+  const proposal = toProposal(receipt, fallbackCategory);
+
+  // ...and by meaning (pgvector), which catches a re-photographed receipt read slightly differently. It only warns.
+  const fingerprint = fingerprintOf({ merchant: receipt.merchant, receiptDate: receipt.date, totalCents: receipt.totalCents, lines: proposal.lines });
+  if (dup.score < DUPLICATE_WARN) {
+    const near = (await search().similarReceipts(member.orgId, fingerprint))[0];
+    if (near && semanticDuplicate(near.similarity, receipt.totalCents, near.totalCents))
+      dup = {
+        score: DUPLICATE_WARN,
+        matchId: near.id,
+        reason: `Looks like the receipt from ${near.merchant ?? "the same store"}${near.receiptDate ? ` on ${near.receiptDate}` : ""} (${money(near.totalCents ?? 0, receipt.currency)}) already submitted; similarity ${near.similarity.toFixed(2)}`,
+      };
+  }
 
   // 3. Receipt checks and the mandate engine
   const payee = payeeFor(member);
   const checks = receiptChecks(receipt, dup, { now, hasPayee: !!payee });
-  const proposal = toProposal(receipt, fallbackCategory);
   const decision = evaluate(toEngineMandate(mandate), proposal, await loadLedger(mandate.id, now), now);
   const failed = checks.find((c) => c.state === "fail");
   const status: ReimbursementStatus = failed || decision.outcome === "deny" ? "rejected" : "needs_approval";
@@ -112,6 +126,7 @@ export async function submitReimbursement(args: { member: MemberRow; mandateId: 
       payeeEmail: payee,
     })
     .returning();
+  await indexReimbursement(row); // for later duplicate and history searches; never fails the submission
 
   const base = { orgId: row.orgId, traceId: row.traceId, paymentId: row.id };
   await audit({ ...base, actor: "human", type: "reimbursement.submitted", message: `${member.name} submitted a receipt photo` });

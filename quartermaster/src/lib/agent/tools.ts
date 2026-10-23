@@ -13,8 +13,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { searchProducts } from "@/lib/integrations/channel3";
 import { mandateUsage, previewPurchase, proposePurchase } from "@/lib/purchases";
-import { SPENDING_POLICY } from "@/lib/policy";
 import { CLAUSES, type Decision } from "@/lib/mandates/engine";
+import { search } from "@/lib/integrations/search";
 import { unitsPerListing } from "@/lib/units";
 
 export interface AgentContext {
@@ -109,10 +109,35 @@ export function buildTools(ctx: AgentContext) {
       execute: () => mandateSummaries(ctx.orgId),
     }),
 
-    readPolicy: tool({
-      description: "Read the org's spending policy (categories, quote rules, delivery rules). It is already in your instructions; you rarely need this.",
-      inputSchema: z.object({}),
-      execute: async () => ({ policy: SPENDING_POLICY }),
+    searchPolicy: tool({
+      description:
+        "Search the org's spending policy by meaning. Returns the most relevant numbered clauses (e.g. 3.3) with their text. Cite the clause number you rely on.",
+      inputSchema: z.object({ query: z.string().min(3).describe("a question or topic, e.g. 'do we need two quotes for a $300 order?'") }),
+      execute: async ({ query }) => {
+        const r = await search().searchPolicy(ctx.orgId, query, 3);
+        return { source: r.source, clauses: r.hits.map((h) => ({ clause: h.clause, section: h.section, text: h.text, relevance: h.score })) };
+      },
+    }),
+
+    purchaseHistory: tool({
+      description:
+        "Search the org's past purchases and reimbursed receipts by meaning: vendor, items, price per unit, date and status (refunded = it went wrong). Use it to reuse a vendor that worked or avoid one that was refunded.",
+      inputSchema: z.object({ query: z.string().min(2).describe("what is being bought, e.g. 'trash bags'") }),
+      execute: async ({ query }) => {
+        const r = await search().purchaseHistory(ctx.orgId, query, 5);
+        return {
+          source: r.source,
+          past: r.hits.map((h) => ({
+            kind: h.kind,
+            vendor: h.vendor,
+            date: h.date,
+            status: h.status,
+            totalDollars: dollars(h.totalCents),
+            items: h.items.map((i) => ({ description: i.description, quantity: i.quantity, pricePerUnitDollars: Math.round(i.unitPriceCents / unitsPerListing(i.description)) / 100 })),
+            relevance: h.score,
+          })),
+        };
+      },
     }),
 
     searchProducts: tool({
@@ -197,7 +222,7 @@ export function buildTools(ctx: AgentContext) {
         "Propose ONE order from ONE vendor. Call checkPurchase first and only propose orders it said are OK. The mandate engine records allow / needs_approval / deny. This does not pay; it returns an approval link.",
       inputSchema: OrderInput.extend({
         consideredOptionIds: z.array(z.string()).describe("every optionId you compared for these items, including the chosen ones"),
-        rationale: z.string().describe("1-3 sentences: why these items, quantities and this vendor (mention price per unit)"),
+        rationale: z.string().describe("1-3 sentences: why these items, quantities and this vendor (mention price per unit), citing the policy clause relied on, e.g. 'per policy 3.3'"),
       }),
       execute: async ({ mandateId, items, consideredOptionIds, rationale }) => {
         const r = await resolve(ctx, items, consideredOptionIds);
