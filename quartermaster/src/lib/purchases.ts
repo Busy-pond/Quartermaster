@@ -8,6 +8,7 @@
  */
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import type { ConsideredOption } from "@/lib/db/schema";
 import { evaluate, SPLIT_WINDOW_MS, type Decision, type Ledger, type Mandate, type ProposalLine } from "@/lib/mandates/engine";
 import { captureIdOf, captureOrder, createOrder } from "@/lib/paypal/client";
 import { indexPurchase } from "@/lib/integrations/search";
@@ -102,7 +103,7 @@ export interface ProposeInput {
   currency: string;
   lines: ProposalLine[];
   rationale: string;
-  optionsConsidered?: { title: string; vendor: string; priceCents: number; url?: string | null }[];
+  optionsConsidered?: ConsideredOption[];
 }
 
 /** Runs the mandate engine without saving anything — the agent's dry run. */

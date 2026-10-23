@@ -25,6 +25,16 @@ Updated every time something is built or changed. The reasons behind each choice
 
 Honest summary: the whole money path is proven with real sandbox money. Agent → mandate engine → treasurer approval → PayPal capture → signed webhook → trust receipt all work, and so do refunds (webhook marks the order refunded and the budget gets the money back) and PayPal Payouts (a $1 test payout reached the personal account). Fake webhooks are rejected. What's left is building Flows B, C, E and F, deploying, and the submission items.
 
+### Days 10–11 (Oct 23): KERNEL live checks and approval notices
+| Step | Result |
+|---|---|
+| `comparePrice`, age labels, URL guard | ✅ 8 unit tests |
+| Signed approval links (HMAC, 72 h) | ✅ 6 unit tests · ✅ live: link signs the treasurer in and opens /approve/<id>; an edited link lands on /mandates?link=bad_signature |
+| Notifier with no channel configured | ✅ records "waits on the treasurer's Mandates page" in the audit trail |
+| KERNEL verification, screenshot on the receipt | 🟡 written; needs `KERNEL_API_KEY` (sponsor credits) |
+| Zapier MCP → Slack/email | 🟡 written; needs your Zapier MCP server URL |
+| Slack incoming webhook, Resend email fallbacks | 🟡 written; need `SLACK_WEBHOOK_URL` / `RESEND_API_KEY` |
+
 ### Day 9 (Oct 23): policy and history search with pgvector
 | Step | Result |
 |---|---|
@@ -185,10 +195,10 @@ Green = done and verified · amber = written, not run · dashed = not started
 | A2 | Chat with streaming replies and tool cards | ✅ works with Gemini 3.5 Flash | `src/app/chat/page.tsx`, `src/app/api/chat/route.ts` |
 | A3 | Agent reads mandates, budgets and the spending policy | ✅ mandates in the prompt · ✅ policy by search with clause citations (Day 9) | `src/lib/agent/tools.ts` (`searchPolicy`, `purchaseHistory`), `src/lib/integrations/search.ts` |
 | A4 | Product search with Channel3, a 6-hour cache and a sample fallback | ✅ fallback · ✅ price per unit and pack sizes · 🟡 Channel3 live not yet seen | `src/lib/integrations/channel3.ts`, `src/lib/units.ts` |
-| A5 | Live price, stock and screenshot check with KERNEL | ⬜ | Day 10 |
+| A5 | Live price, stock and screenshot check with KERNEL | 🟡 written, needs the KERNEL key | `src/lib/integrations/kernel.ts`, `src/lib/verify/` |
 | A6 | Propose a purchase (prices taken from stored results) | ✅ dry-run check, per-unit choices, and explains a budget shortfall with the full cost (Oct 20) | `proposePurchase` / `checkPurchase` tools → `src/lib/purchases.ts` |
 | A7 | Mandate engine decides allow, needs approval or deny | ✅ | `src/lib/mandates/engine.ts`: 34/34 tests pass |
-| A8 | Approval request sent to the treasurer by Slack or email (Zapier, fallback Resend) | ⬜ | Day 11. For now the agent shares the approval link in chat |
+| A8 | Approval request sent to the treasurer by Slack or email (Zapier, fallback Resend) | ✅ signed links and in-app fallback · 🟡 Zapier, Slack and Resend need keys | `src/lib/approvals/`, `src/app/a/[token]/route.ts` |
 | A9 | Approval page with the PayPal JS SDK v6 button, approver-only | ✅ paid with a US sandbox personal account | `src/app/approve/[id]/page.tsx`, `src/components/paypal-button.tsx` |
 | A10 | Mandate re-checked, then PayPal order created and captured, with idempotency keys | ✅ order `11E28665HD763551M` created and captured | `src/lib/purchases.ts`, `src/lib/paypal/client.ts` |
 | A11 | Signed webhook updates the payment (duplicates ignored) | ✅ real events accepted (200), fake simulator events rejected (400) | `src/app/api/webhooks/paypal/route.ts` |
@@ -251,8 +261,8 @@ Green = done and verified · amber = written, not run · dashed = not started
 | 7 | Oct 22 | Deploy to Render, CI, Sentry, /status | ✅ /status, /api/health · ✅ CI moved to the repo root (runs on the next push) · ⬜ Render deploy, Sentry, UptimeRobot (need the hosted URL) |
 | 8 | Oct 23 | Snap-to-reimburse and Payouts | ✅ verified end to end on Oct 23 (two receipts, one payout, one duplicate) |
 | 9 | Oct 24 | Policy and history search (pgvector) | ✅ done Oct 23: policy clauses, purchase history, duplicate receipts by meaning |
-| 10 | Oct 25 | KERNEL live verification | ⬜ |
-| 11 | Oct 26 | Zapier and Resend approvals | ⬜ |
+| 10 | Oct 25 | KERNEL live verification | 🟡 written Oct 23; waiting for the KERNEL key |
+| 11 | Oct 26 | Zapier and Resend approvals | ✅ signed links verified · 🟡 channels wait for your Zapier/Slack/Resend keys |
 | 12 | Oct 27 | AG Grid Community dashboard | ⬜ |
 | 13 | Oct 28 | Subscriptions, invoicing, refund button | ⬜ |
 | 14 | Oct 29 | MCP server | ⬜ |

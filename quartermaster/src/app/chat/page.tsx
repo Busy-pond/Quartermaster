@@ -55,6 +55,7 @@ const TOOL_LABEL: Record<string, string> = {
   readPolicy: "Reading the spending policy",
   searchPolicy: "Searching the spending policy",
   purchaseHistory: "Checking past purchases",
+  verifyProducts: "Checking live prices with KERNEL",
   searchProducts: "Searching retailers",
   checkPurchase: "Checking the budget and mandate",
   proposePurchase: "Proposing the order",

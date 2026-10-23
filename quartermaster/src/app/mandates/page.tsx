@@ -8,7 +8,14 @@ import { BudgetBar } from "@/components/budget-bar";
 import { listReimbursements } from "@/lib/reimbursements/service";
 import { REIMBURSEMENT_STATUS } from "@/lib/reimbursements/labels";
 
-export default async function MandatesPage() {
+const LINK_PROBLEM: Record<string, string> = {
+  expired: "That approval link has expired (links last 72 hours). The request is still listed below.",
+  bad_signature: "That approval link isn't valid. Switch to the treasurer and use the list below.",
+  malformed: "That approval link isn't valid. Switch to the treasurer and use the list below.",
+};
+
+export default async function MandatesPage({ searchParams }: { searchParams: Promise<{ link?: string }> }) {
+  const { link } = await searchParams;
   const org = await demoOrg();
   if (!org) return <p className="text-muted">Demo org not found — run <code>npm run db:seed</code>.</p>;
 
@@ -26,6 +33,7 @@ export default async function MandatesPage() {
 
   return (
     <div className="space-y-8">
+      {link && LINK_PROBLEM[link] && <p className="card border-warn/40 bg-warn-soft p-3 text-sm text-warn">{LINK_PROBLEM[link]}</p>}
       <div>
         <p className="label">{org.name}</p>
         <h1 className="mt-1 text-2xl font-semibold">Spending mandates</h1>

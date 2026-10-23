@@ -3,6 +3,9 @@ import { z } from "zod";
 import { handle } from "@/lib/http";
 import { requireMember } from "@/lib/session";
 import { submitReimbursement } from "@/lib/reimbursements/service";
+import { getMandate } from "@/lib/purchases";
+import { notifyLater } from "@/lib/approvals/notify";
+import { money } from "@/lib/format";
 
 export const maxDuration = 60;
 
@@ -37,5 +40,22 @@ export const POST = handle(async (req: Request) => {
     if (/NoObjectGenerated|No output|parse|schema|AI_/i.test(msg)) throw new Error("READ_FAILED: The receipt couldn't be read. Try a sharper, flatter photo, or type the details in by hand.");
     throw e;
   });
+  if (row.status === "needs_approval") {
+    const m = row.mandateId ? await getMandate(row.mandateId) : undefined;
+    if (m?.approverIds[0])
+      await notifyLater({
+        kind: "reimbursement",
+        id: row.id,
+        orgId: row.orgId,
+        traceId: row.traceId,
+        approverId: m.approverIds[0],
+        title: `receipt from ${row.merchant || "a store"}${row.receiptDate ? ` (${row.receiptDate})` : ""}, ${money(row.totalCents ?? 0, row.currency ?? "USD")}`,
+        amountCents: row.totalCents ?? 0,
+        currency: row.currency ?? "USD",
+        reason: "Policy 5.2: every reimbursement is paid after the treasurer approves",
+        requestedBy: me.name,
+        appUrl: process.env.APP_URL ?? new URL(req.url).origin,
+      });
+  }
   return NextResponse.json({ id: row.id, status: row.status });
 });
