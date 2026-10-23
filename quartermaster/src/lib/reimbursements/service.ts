@@ -11,7 +11,7 @@ import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { ReimbursementStatus } from "@/lib/db/schema";
 import { evaluate, type Decision } from "@/lib/mandates/engine";
-import { audit, getMandate, loadLedger, toEngineMandate } from "@/lib/purchases";
+import { audit, engineMandate, getMandate, loadLedger } from "@/lib/purchases";
 import { createPayout, getPayout } from "@/lib/paypal/client";
 import { money } from "@/lib/format";
 import { extractReceipt } from "./extract";
@@ -96,7 +96,7 @@ export async function submitReimbursement(args: { member: MemberRow; mandateId: 
   // 3. Receipt checks and the mandate engine
   const payee = payeeFor(member);
   const checks = receiptChecks(receipt, dup, { now, hasPayee: !!payee });
-  const decision = evaluate(toEngineMandate(mandate), proposal, await loadLedger(mandate.id, now), now);
+  const decision = evaluate(await engineMandate(mandate), proposal, await loadLedger(mandate.id, now), now);
   const failed = checks.find((c) => c.state === "fail");
   const status: ReimbursementStatus = failed || decision.outcome === "deny" ? "rejected" : "needs_approval";
   const rejectedReason = failed ? `${failed.id}: ${failed.message ?? failed.label}` : decision.outcome === "deny" ? `${decision.clause}: ${decision.message}` : null;
@@ -159,7 +159,7 @@ async function recheck(r: ReimbursementRow): Promise<Decision> {
   if (!m) throw new Error("This reimbursement has no mandate");
   const now = new Date();
   return evaluate(
-    toEngineMandate(m),
+    await engineMandate(m),
     { vendor: r.vendor ?? "unknown-merchant", currency: r.currency ?? m.currency, totalCents: r.totalCents ?? 0, lines: r.lines ?? [] },
     await loadLedger(m.id, now, undefined, r.id),
     now,

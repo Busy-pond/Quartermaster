@@ -8,6 +8,8 @@ import { DecisionPanel } from "@/components/decision";
 import { Stamp, stampFor } from "@/components/stamp";
 import { storedCheck } from "@/lib/integrations/kernel";
 import { ageLabel } from "@/lib/verify/price";
+import { currentMember } from "@/lib/session";
+import { RefundButton } from "@/components/money-actions";
 
 const ACTOR: Record<string, string> = { agent: "Agent", human: "Person", webhook: "PayPal", system: "System" };
 
@@ -21,6 +23,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     request ? db().query.members.findFirst({ where: eq(schema.members.id, request.memberId) }) : null,
     p.approvedBy ? db().query.members.findFirst({ where: eq(schema.members.id, p.approvedBy) }) : null,
   ]);
+  const me = await currentMember();
+  const canRefund = p.status === "captured" && !!me && !!mandate?.approverIds.includes(me.id);
   const status = STATUS_STYLE[p.status];
   // Screenshots of KERNEL live checks, for the options that were verified
   const shots = new Map(
@@ -149,6 +153,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
           {events.length === 0 && <li className="text-muted">No events yet.</li>}
         </ol>
       </section>
+
+      {canRefund && <RefundButton paymentId={p.id} amount={money(p.totalCents, p.currency)} />}
 
       {(p.status === "needs_approval" || p.status === "approved") && (
         <Link href={`/approve/${p.id}`} className="btn-primary">

@@ -209,3 +209,79 @@ export async function verifyWebhookSignature(headers: Headers, rawBody: string):
   });
   return res.verification_status === "SUCCESS";
 }
+
+// ---------------------------------------------------------------- Subscriptions (member dues, Day 13)
+
+export const createCatalogProduct = (args: { name: string; description: string; requestId: string }) =>
+  call<{ id: string }>("POST", "/v1/catalogs/products", {
+    requestId: args.requestId,
+    body: { name: args.name, description: args.description, type: "SERVICE", category: "CHARITY" },
+  });
+
+export const createMonthlyPlan = (args: { productId: string; name: string; amountCents: number; currency: string; requestId: string }) =>
+  call<{ id: string; status: string }>("POST", "/v1/billing/plans", {
+    requestId: args.requestId,
+    body: {
+      product_id: args.productId,
+      name: args.name,
+      status: "ACTIVE",
+      billing_cycles: [
+        { frequency: { interval_unit: "MONTH", interval_count: 1 }, tenure_type: "REGULAR", sequence: 1, total_cycles: 0, pricing_scheme: { fixed_price: { value: toValue(args.amountCents), currency_code: args.currency } } },
+      ],
+      payment_preferences: { auto_bill_outstanding: true, payment_failure_threshold: 2 },
+    },
+  });
+
+export interface PayPalSubscription {
+  id: string;
+  status: string; // APPROVAL_PENDING, APPROVED, ACTIVE, SUSPENDED, CANCELLED, EXPIRED
+  plan_id: string;
+  subscriber?: { email_address?: string; name?: { given_name?: string; surname?: string } };
+  billing_info?: { last_payment?: { amount: { value: string; currency_code: string }; time: string } };
+}
+
+export const getSubscription = (id: string) => call<PayPalSubscription>("GET", `/v1/billing/subscriptions/${encodeURIComponent(id)}`);
+
+export interface SubscriptionTransaction {
+  id: string; // the sale id, same as the resource id on PAYMENT.SALE.COMPLETED
+  status: string; // COMPLETED, PENDING, REFUNDED...
+  amount_with_breakdown: { gross_amount: { value: string; currency_code: string } };
+  time: string;
+}
+
+export const listSubscriptionTransactions = (id: string, start: Date, end: Date) =>
+  call<{ transactions?: SubscriptionTransaction[] }>(
+    "GET",
+    `/v1/billing/subscriptions/${encodeURIComponent(id)}/transactions?start_time=${encodeURIComponent(start.toISOString())}&end_time=${encodeURIComponent(end.toISOString())}`,
+  );
+
+// ---------------------------------------------------------------- Invoicing (sponsor invoices, Day 13)
+
+export interface PayPalInvoice {
+  id: string;
+  status: string; // DRAFT, SENT, SCHEDULED, PAID, MARKED_AS_PAID, CANCELLED, PARTIALLY_PAID...
+  detail?: { invoice_number?: string; metadata?: { recipient_view_url?: string; invoicer_view_url?: string } };
+  amount?: { value: string; currency_code: string };
+  payments?: { transactions?: { payment_id?: string; amount?: { value: string; currency_code: string } }[]; paid_amount?: { value: string; currency_code: string } };
+}
+
+export async function createInvoiceDraft(args: { sponsorEmail: string; sponsorName?: string | null; amountCents: number; currency: string; note: string; reference: string; requestId: string }) {
+  // POST returns only a link to the new draft; read it back to get the id and status.
+  const created = await call<{ href?: string; id?: string; links?: { href: string; rel: string }[] }>("POST", "/v2/invoicing/invoices", {
+    requestId: args.requestId,
+    body: {
+      detail: { currency_code: args.currency, reference: args.reference.slice(0, 120), note: args.note.slice(0, 4000), payment_term: { term_type: "DUE_ON_RECEIPT" } },
+      primary_recipients: [{ billing_info: { email_address: args.sponsorEmail, ...(args.sponsorName ? { name: { full_name: args.sponsorName.slice(0, 140) } } : {}) } }],
+      items: [{ name: "Sponsorship", description: args.note.slice(0, 1000), quantity: "1", unit_amount: { currency_code: args.currency, value: toValue(args.amountCents) } }],
+    },
+  });
+  const href = created.href ?? created.links?.find((l) => l.rel === "self")?.href;
+  const id = created.id ?? href?.split("/").pop();
+  if (!id) throw new Error("PayPal didn't return the new invoice id");
+  return getInvoice(id);
+}
+
+export const getInvoice = (id: string) => call<PayPalInvoice>("GET", `/v2/invoicing/invoices/${encodeURIComponent(id)}`);
+
+export const sendInvoice = (id: string, requestId: string) =>
+  call<{ href?: string }>("POST", `/v2/invoicing/invoices/${encodeURIComponent(id)}/send`, { requestId, body: { send_to_invoicer: false, send_to_recipient: true } });

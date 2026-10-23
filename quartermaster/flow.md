@@ -25,6 +25,16 @@ Updated every time something is built or changed. The reasons behind each choice
 
 Honest summary: the whole money path is proven with real sandbox money. Agent → mandate engine → treasurer approval → PayPal capture → signed webhook → trust receipt all work, and so do refunds (webhook marks the order refunded and the budget gets the money back) and PayPal Payouts (a $1 test payout reached the personal account). Fake webhooks are rejected. What's left is building Flows B, C, E and F, deploying, and the submission items.
 
+### Day 13 (Oct 23): money in and refunds
+| Step | Result |
+|---|---|
+| `npm run setup:dues` | ✅ sandbox product `PROD-78E8055513737793A`, plan `P-8DS098128A9567949NLNXAWY` ($10/month), Operations budget created |
+| `/join` | ✅ PayPal Subscribe and card buttons render (checked in Chrome) · 🟡 subscribing needs your sandbox personal login |
+| Agent: "invoice our sponsor Marina Cafe $250" | ✅ called createSponsorInvoice → PayPal **draft**; reply shares the review link and doesn't claim it was sent |
+| Send the invoice | ✅ volunteer refused · ✅ treasurer sent it (PayPal SENT, sponsor view link) · 🟡 paying it needs a sandbox payer |
+| Refund button | ✅ shown to the treasurer only on paid receipts · ✅ volunteer refused · ✅ unpaid order refused · 🟡 not clicked on your one paid order (refunds were verified through the API on Oct 20) |
+| Credits and ledger maths | ✅ 10 unit tests: sale, transaction, invoice credits, one credit per PayPal id, dues + sponsorship raise the cap, refund returns money |
+
 ### Day 12 (Oct 23): treasurer dashboard on AG Grid Community
 | Step | Result |
 |---|---|
@@ -227,15 +237,15 @@ Green = done and verified · amber = written, not run · dashed = not started
 ## Flow C: money in (Day 13)
 | # | Step | Status |
 |---|---|---|
-| C1 | Member dues through PayPal Subscriptions, credited to the budget | ⬜ |
-| C2 | Agent creates a sponsor invoice with PayPal Invoicing | ⬜ |
-| C3 | Paid events credit the right budget | ⬜ |
+| C1 | Member dues through PayPal Subscriptions, credited to the budget | ✅ plan + /join button · 🟡 first subscription needs a sandbox payer |
+| C2 | Agent creates a sponsor invoice with PayPal Invoicing | ✅ agent drafts, treasurer sends (Oct 23) |
+| C3 | Paid events credit the right budget | ✅ logic tested · 🟡 needs a real paid sale/invoice and the webhook events subscribed |
 
 ## Flow D: refunds and exceptions
 | # | Step | Status |
 |---|---|---|
 | D1 | Refund webhook marks the payment refunded and restores the budget | ✅ verified on the $178 bottles order (Oct 20) |
-| D2 | "Refund" button on the trust receipt | ⬜ Day 13 (refunds work through the API ✅; the button is what's left) |
+| D2 | "Refund" button on the trust receipt | ✅ treasurer-only button with confirm and reason · 🟡 not clicked on a real paid order yet |
 | D3 | Late delivery shown on the event calendar (Bryntum) | ➖ Day 20, optional |
 | D4 | Agent drafts dispute evidence | ➖ optional |
 
@@ -272,7 +282,7 @@ Green = done and verified · amber = written, not run · dashed = not started
 | 10 | Oct 25 | KERNEL live verification | 🟡 written Oct 23; waiting for the KERNEL key |
 | 11 | Oct 26 | Zapier and Resend approvals | ✅ signed links verified · 🟡 channels wait for your Zapier/Slack/Resend keys |
 | 12 | Oct 27 | AG Grid Community dashboard | ✅ done Oct 23 |
-| 13 | Oct 28 | Subscriptions, invoicing, refund button | ⬜ |
+| 13 | Oct 28 | Subscriptions, invoicing, refund button | ✅ built Oct 23 · 🟡 needs a sandbox subscription and a paid invoice |
 | 14 | Oct 29 | MCP server | ⬜ |
 | 15 | Oct 30 | OpenAPI, Postman, APIMatic SDK | ⬜ |
 | 16 | Oct 31 | Polish, accessibility, Playwright | ⬜ |

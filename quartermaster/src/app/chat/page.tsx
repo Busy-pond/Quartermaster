@@ -56,6 +56,7 @@ const TOOL_LABEL: Record<string, string> = {
   searchPolicy: "Searching the spending policy",
   purchaseHistory: "Checking past purchases",
   verifyProducts: "Checking live prices with KERNEL",
+  createSponsorInvoice: "Drafting a sponsor invoice",
   searchProducts: "Searching retailers",
   checkPurchase: "Checking the budget and mandate",
   proposePurchase: "Proposing the order",

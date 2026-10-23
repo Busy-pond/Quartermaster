@@ -32,6 +32,31 @@ const STEPS: { name: string; sql: string }[] = [
   { name: "search_index unique ref", sql: `create unique index if not exists "search_index_kind_ref" on "search_index" ("kind", "ref_id")` },
   { name: "search_index org index", sql: `create index if not exists "search_index_org_kind" on "search_index" ("org_id", "kind")` },
   { name: "search_index vector index", sql: `create index if not exists "search_index_embedding" on "search_index" using hnsw ("embedding" vector_cosine_ops)` },
+  // Day 13: money in
+  {
+    name: "funding table",
+    sql: `create table if not exists "funding" (
+      "id" text primary key, "org_id" text not null references "orgs"("id"), "mandate_id" text not null references "mandates"("id"),
+      "source" text not null, "paypal_id" text not null, "reference" text, "amount_cents" integer not null, "currency" text not null,
+      "note" text, "created_at" timestamptz not null default now())`,
+  },
+  { name: "funding unique PayPal id", sql: `create unique index if not exists "funding_paypal_id" on "funding" ("paypal_id")` },
+  { name: "funding mandate index", sql: `create index if not exists "funding_mandate" on "funding" ("mandate_id")` },
+  {
+    name: "subscriptions table",
+    sql: `create table if not exists "subscriptions" (
+      "id" text primary key, "org_id" text not null references "orgs"("id"), "member_id" text not null references "members"("id"),
+      "plan_id" text not null, "status" text not null, "created_at" timestamptz not null default now(), "updated_at" timestamptz not null default now())`,
+  },
+  {
+    name: "invoices table",
+    sql: `create table if not exists "invoices" (
+      "id" text primary key, "org_id" text not null references "orgs"("id"), "mandate_id" text not null references "mandates"("id"),
+      "paypal_invoice_id" text, "sponsor_email" text not null, "sponsor_name" text, "amount_cents" integer not null, "currency" text not null,
+      "note" text not null, "status" text not null, "recipient_url" text, "created_by" text not null, "sent_by" text, "sent_at" timestamptz,
+      "trace_id" text not null, "created_at" timestamptz not null default now(), "updated_at" timestamptz not null default now())`,
+  },
+  { name: "invoices unique PayPal id", sql: `create unique index if not exists "invoices_paypal_id" on "invoices" ("paypal_invoice_id")` },
 ];
 
 async function main() {

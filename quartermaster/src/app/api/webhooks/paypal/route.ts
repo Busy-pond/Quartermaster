@@ -10,6 +10,8 @@ import type { PaymentStatus } from "@/lib/db/schema";
 import { verifyWebhookSignature } from "@/lib/paypal/client";
 import { audit } from "@/lib/purchases";
 import { applyPayoutStatus, getReimbursement, syncPayout } from "@/lib/reimbursements/service";
+import { creditSale, setSubscriptionStatus, syncInvoice } from "@/lib/funding/service";
+import { saleCredit } from "@/lib/funding/events";
 
 export const dynamic = "force-dynamic";
 
@@ -48,12 +50,39 @@ export async function POST(req: Request) {
 
   try {
     if (event.event_type.startsWith("PAYMENT.PAYOUTS")) await applyPayout(event);
-    else await apply(event);
+    else if (await applyMoneyIn(event)) {
+      // handled: dues or a sponsor invoice
+    } else await apply(event);
   } catch (e) {
     // Stored already; log and still 200 so a bug here does not cause retry storms.
     console.error("Webhook handling failed", event.event_type, e);
   }
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * Money in (Day 13). Dues: PAYMENT.SALE.COMPLETED carries the subscription id as billing_agreement_id;
+ * BILLING.SUBSCRIPTION.* change its status. Invoices: INVOICING.INVOICE.* make us read the invoice
+ * back from PayPal (the event body is not trusted for the amount). Returns false for other events.
+ */
+async function applyMoneyIn(event: PayPalEvent): Promise<boolean> {
+  const t = event.event_type;
+  const res = event.resource as Record<string, unknown> & { id?: string; status?: string; invoice?: { id?: string } };
+  if (t === "PAYMENT.SALE.COMPLETED") {
+    const c = saleCredit(res as Parameters<typeof saleCredit>[0]);
+    if (c) await creditSale(c, "webhook");
+    return true;
+  }
+  if (t.startsWith("BILLING.SUBSCRIPTION.")) {
+    if (res.id) await setSubscriptionStatus(res.id, res.status ?? t.split(".").pop()!);
+    return true;
+  }
+  if (t.startsWith("INVOICING.INVOICE.")) {
+    const id = res.invoice?.id ?? res.id;
+    if (id) await syncInvoice(id, "webhook");
+    return true;
+  }
+  return false;
 }
 
 /**

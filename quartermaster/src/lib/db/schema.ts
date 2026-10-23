@@ -249,6 +249,63 @@ export const searchIndex = pgTable(
   (t) => [uniqueIndex("search_index_kind_ref").on(t.kind, t.refId), index("search_index_org_kind").on(t.orgId, t.kind), index("search_index_embedding").using("hnsw", t.embedding.op("vector_cosine_ops"))],
 );
 
+/**
+ * Money coming IN (Day 13): member dues and sponsor invoices. Each PayPal transaction
+ * is credited exactly once (unique paypal_id), and crediting raises the budget's cap.
+ */
+export const funding = pgTable(
+  "funding",
+  {
+    id: id(),
+    orgId: text("org_id").notNull().references(() => orgs.id),
+    mandateId: text("mandate_id").notNull().references(() => mandates.id),
+    source: text("source", { enum: ["dues", "invoice"] }).notNull(),
+    paypalId: text("paypal_id").notNull(), // sale id (dues) or invoice id (sponsor)
+    reference: text("reference"), // subscription id or our invoice row id
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull(),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("funding_paypal_id").on(t.paypalId), index("funding_mandate").on(t.mandateId)],
+);
+
+/** Member dues subscriptions (PayPal Subscriptions). The id is PayPal's subscription id. */
+export const subscriptions = pgTable("subscriptions", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => orgs.id),
+  memberId: text("member_id").notNull().references(() => members.id),
+  planId: text("plan_id").notNull(),
+  status: text("status").notNull(),
+  createdAt: createdAt(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Sponsor invoices (PayPal Invoicing). The agent drafts; only the treasurer sends. */
+export const invoices = pgTable(
+  "invoices",
+  {
+    id: id(),
+    orgId: text("org_id").notNull().references(() => orgs.id),
+    mandateId: text("mandate_id").notNull().references(() => mandates.id),
+    paypalInvoiceId: text("paypal_invoice_id"),
+    sponsorEmail: text("sponsor_email").notNull(),
+    sponsorName: text("sponsor_name"),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull(),
+    note: text("note").notNull(),
+    status: text("status").notNull(), // DRAFT, SENT, PAID, CANCELLED (PayPal's words)
+    recipientUrl: text("recipient_url"),
+    createdBy: text("created_by").notNull(), // member id who asked the agent
+    sentBy: text("sent_by"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    traceId: text("trace_id").notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("invoices_paypal_id").on(t.paypalInvoiceId)],
+);
+
 /** Small key-value cache for third-party responses (Channel3, later KERNEL). */
 export const apiCache = pgTable("api_cache", {
   key: text("key").primaryKey(),
