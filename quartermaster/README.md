@@ -66,6 +66,31 @@ npm test          # mandate engine unit tests
 npm run typecheck
 ```
 
+## Use it from another AI agent (MCP)
+
+Quartermaster is also an MCP server at `/api/mcp` (streamable HTTP). Outside agents can list mandates, search products, dry-run (`check_purchase`), **request** purchases (`request_purchase`), search the policy, read trust receipts and submit receipts. They can never pay: every request goes through the same mandate engine, and its trust receipt names the agent.
+
+1. Switch to the treasurer and open **Agents** (`/settings`). Create a key. It's shown once.
+2. **Claude Desktop:** Settings → Developer → Edit config, paste the snippet the page shows into `claude_desktop_config.json`, and restart Claude. It looks like this:
+   ```json
+   {
+     "mcpServers": {
+       "quartermaster": {
+         "command": "npx",
+         "args": ["-y", "mcp-remote@0.14.3", "http://localhost:3000/api/mcp", "--header", "Authorization: Bearer qm_live_..."]
+       }
+     }
+   }
+   ```
+3. Try: *"Use Quartermaster to buy 4 folding tables for the beach cleanup."* With the demo data the Beach mandate is nearly spent, so the request is **blocked under rule M7**. It still appears on the treasurer's Dashboard and gets a trust receipt marked "Asked by: External agent (…)".
+
+To test without Claude Desktop:
+
+```bash
+npx -y @modelcontextprotocol/inspector@2.10.1 --cli http://localhost:3000/api/mcp --transport http \
+  --header "Authorization: Bearer qm_live_..." --method tools/list
+```
+
 ## Deploy
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy) — uses `render.yaml` (one web service). Set the environment variables, then run `npm run setup` once locally against the same Neon database.
