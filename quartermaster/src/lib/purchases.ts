@@ -6,7 +6,7 @@
  * The mandate is re-evaluated right before money moves, so a mandate that was
  * revoked or exhausted after the proposal still blocks the payment.
  */
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { ConsideredOption } from "@/lib/db/schema";
 import { evaluate, SPLIT_WINDOW_MS, type Decision, type Ledger, type Mandate, type ProposalLine } from "@/lib/mandates/engine";
@@ -30,6 +30,23 @@ export function toEngineMandate(m: MandateRow): Mandate {
     expiresAt: m.expiresAt.toISOString(),
     approverIds: m.approverIds,
   };
+}
+
+/** Money credited to this budget by dues and sponsor invoices (Day 13). */
+export async function fundedCents(mandateId: string): Promise<number> {
+  const [row] = await db()
+    .select({ total: sql<number>`coalesce(sum(${schema.funding.amountCents}), 0)::int` })
+    .from(schema.funding)
+    .where(eq(schema.funding.mandateId, mandateId));
+  return Number(row?.total ?? 0);
+}
+
+/**
+ * The mandate as the engine judges it: the cap the treasurer SIGNED plus money that
+ * came in for this budget. The signed cap in the row is never rewritten.
+ */
+export async function engineMandate(m: MandateRow): Promise<Mandate> {
+  return { ...toEngineMandate(m), capCents: m.capCents + (await fundedCents(m.id)) };
 }
 
 /**
@@ -114,15 +131,16 @@ export async function previewPurchase(input: Pick<ProposeInput, "orgId" | "manda
   const totalCents = input.lines.reduce((s, l) => s + l.unitPriceCents * l.quantity, 0);
   const proposal = { vendor: input.vendor.trim().toLowerCase(), currency: input.currency, totalCents, lines: input.lines };
   const ledger = await loadLedger(mandateRow.id, now);
-  const decision = evaluate(toEngineMandate(mandateRow), proposal, ledger, now);
-  const remainingBeforeCents = mandateRow.capCents - ledger.spentCents - ledger.committedCents;
-  return { mandateRow, proposal, totalCents, decision, remainingBeforeCents };
+  const engine = await engineMandate(mandateRow);
+  const decision = evaluate(engine, proposal, ledger, now);
+  const remainingBeforeCents = engine.capCents - ledger.spentCents - ledger.committedCents;
+  return { mandateRow, proposal, totalCents, decision, remainingBeforeCents, capCents: engine.capCents };
 }
 
 export async function proposePurchase(
   input: ProposeInput,
 ): Promise<{ payment: PaymentRow; decision: Decision; remainingBeforeCents: number; capCents: number }> {
-  const { mandateRow, proposal, totalCents, decision, remainingBeforeCents } = await previewPurchase(input);
+  const { mandateRow, proposal, totalCents, decision, remainingBeforeCents, capCents } = await previewPurchase(input);
 
   const status = decision.outcome === "deny" ? "denied" : decision.outcome === "needs_approval" ? "needs_approval" : "approved";
   const [payment] = await db()
@@ -153,7 +171,7 @@ export async function proposePurchase(
     message: `Mandate engine: ${decision.outcome} (${decision.clause}) — ${decision.message}`,
     payload: decision,
   });
-  return { payment, decision, remainingBeforeCents, capCents: mandateRow.capCents };
+  return { payment, decision, remainingBeforeCents, capCents };
 }
 
 export async function getPayment(id: string) {
@@ -166,7 +184,7 @@ async function recheck(p: PaymentRow): Promise<Decision> {
   if (!m) throw new Error("Mandate disappeared");
   const now = new Date();
   return evaluate(
-    toEngineMandate(m),
+    await engineMandate(m),
     { vendor: p.vendor, currency: p.currency, totalCents: p.totalCents, lines: p.lines },
     await loadLedger(m.id, now, p.id),
     now,
@@ -245,11 +263,14 @@ export async function capturePayment(paymentId: string, orderId: string, approve
 
 /** Mandate usage for dashboards and the agent. */
 export async function mandateUsage(m: MandateRow) {
-  const ledger = await loadLedger(m.id, new Date());
+  const [ledger, funded] = await Promise.all([loadLedger(m.id, new Date()), fundedCents(m.id)]);
+  const capCents = m.capCents + funded;
   return {
+    capCents, // signed cap + money in
+    fundedCents: funded,
     spentCents: ledger.spentCents,
     committedCents: ledger.committedCents,
-    remainingCents: m.capCents - ledger.spentCents - ledger.committedCents,
+    remainingCents: capCents - ledger.spentCents - ledger.committedCents,
   };
 }
 

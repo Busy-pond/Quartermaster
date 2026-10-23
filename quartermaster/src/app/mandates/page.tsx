@@ -89,9 +89,15 @@ export default async function MandatesPage({ searchParams }: { searchParams: Pro
                 {money(u.remainingCents, m.currency)} <span className="text-base font-medium text-muted">left</span>
               </p>
               <div className="mt-2">
-                <BudgetBar capCents={m.capCents} spentCents={u.spentCents} committedCents={u.committedCents} currency={m.currency} />
+                <BudgetBar capCents={u.capCents} spentCents={u.spentCents} committedCents={u.committedCents} currency={m.currency} />
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-y-1 text-sm">
+                {u.fundedCents > 0 && (
+                  <>
+                    <dt className="text-muted">Raised (dues, sponsors)</dt>
+                    <dd className="amount text-right text-ok">+{money(u.fundedCents, m.currency)}</dd>
+                  </>
+                )}
                 <dt className="text-muted">Auto-approve per item</dt>
                 <dd className="amount text-right">{money(m.perItemAutoLimitCents, m.currency)}</dd>
                 <dt className="text-muted">Auto-approve per order</dt>

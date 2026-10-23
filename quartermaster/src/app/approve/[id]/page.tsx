@@ -63,7 +63,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ id: st
         <div className="mt-5 border-t border-dashed border-line pt-4">
           <p className="label mb-2">What this order does to the budget</p>
           <BudgetBar
-            capCents={mandate.capCents}
+            capCents={usage.capCents}
             spentCents={usage.spentCents}
             committedCents={usage.committedCents}
             orderCents={p.status === "needs_approval" || p.status === "denied" ? p.totalCents : 0}

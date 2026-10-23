@@ -18,6 +18,7 @@ import { search } from "@/lib/integrations/search";
 import { loadVerifications, verifyOptions } from "@/lib/verify/options";
 import { flags } from "@/lib/flags";
 import { notifyLater } from "@/lib/approvals/notify";
+import { draftSponsorInvoice } from "@/lib/funding/service";
 import { unitsPerListing } from "@/lib/units";
 
 export interface AgentContext {
@@ -97,7 +98,7 @@ export async function mandateSummaries(orgId: string) {
         event: evs.find((e) => e.id === m.eventId)?.name ?? null,
         eventDate: evs.find((e) => e.id === m.eventId)?.startsAt.toISOString() ?? null,
         currency: m.currency,
-        capDollars: dollars(m.capCents),
+        capDollars: dollars(u.capCents),
         remainingDollars: dollars(u.remainingCents),
         perItemAutoLimitDollars: dollars(m.perItemAutoLimitCents),
         perOrderAutoLimitDollars: dollars(m.perOrderAutoLimitCents),
@@ -225,6 +226,22 @@ export function buildTools(ctx: AgentContext) {
             };
           }),
         };
+      },
+    }),
+
+    createSponsorInvoice: tool({
+      description:
+        "Drafts a PayPal invoice asking a sponsor for money. It is NOT sent: the treasurer reviews and sends it from the link returned. Use only when the member asks to invoice or request money from a sponsor.",
+      inputSchema: z.object({
+        sponsorEmail: z.string().email(),
+        sponsorName: z.string().max(140).optional(),
+        amountDollars: z.number().positive().max(10_000),
+        note: z.string().min(5).max(1000).describe("what the sponsorship pays for, in one or two sentences"),
+        mandateId: z.string().optional().describe("the budget the money should go to; omit for the Operations budget"),
+      }),
+      execute: async ({ sponsorEmail, sponsorName, amountDollars, note, mandateId }) => {
+        const { row, mandate } = await draftSponsorInvoice({ orgId: ctx.orgId, createdBy: ctx.memberId, traceId: ctx.traceId, sponsorEmail, sponsorName, amountCents: Math.round(amountDollars * 100), note, mandateId });
+        return { status: row.status, amountDollars: dollars(row.amountCents), sponsorEmail, budget: mandate.title, reviewUrl: `${ctx.appUrl}/invoices/${row.id}`, nextStep: "The treasurer must open the review link and send it. Say so; don't claim it was sent." };
       },
     }),
 

@@ -17,11 +17,12 @@
     "db:push": "tsx scripts/db-push.ts",
     "db:seed": "tsx scripts/seed.ts",
     "check:env": "tsx scripts/check-env.ts",
-    "setup": "npm run check:env && npm run db:vector && npm run db:push && npm run db:migrate && npm run db:seed",
+    "setup": "npm run check:env && npm run db:vector && npm run db:push && npm run db:migrate && npm run db:seed && npm run setup:dues",
     "spike:payout": "tsx scripts/spike-payout.ts",
     "db:vector": "tsx scripts/db-vector.ts",
     "db:index": "tsx scripts/index-search.ts",
-    "db:migrate": "tsx scripts/db-migrate.ts"
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "setup:dues": "tsx scripts/setup-dues.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "3.0.134",

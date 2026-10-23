@@ -154,7 +154,7 @@ export default async function ReimbursementPage({ params }: { params: Promise<{ 
         {mandate && usage && (
           <div className="mt-5 border-t border-dashed border-line pt-4">
             <p className="label mb-2">What this does to the budget</p>
-            <BudgetBar capCents={mandate.capCents} spentCents={usage.spentCents} committedCents={usage.committedCents} orderCents={waiting ? (r.totalCents ?? 0) : 0} currency={mandate.currency} />
+            <BudgetBar capCents={usage.capCents} spentCents={usage.spentCents} committedCents={usage.committedCents} orderCents={waiting ? (r.totalCents ?? 0) : 0} currency={mandate.currency} />
           </div>
         )}
       </section>

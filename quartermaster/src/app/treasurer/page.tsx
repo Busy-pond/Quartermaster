@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { currentMember, demoOrg } from "@/lib/session";
 import { envelopes, exceptionsOverTime, spendByCategory, type LedgerRow } from "@/lib/dashboard/aggregate";
@@ -37,6 +37,13 @@ export default async function TreasurerPage() {
       .limit(500),
     db().query.members.findMany({ where: eq(schema.members.orgId, org.id) }),
   ]);
+  // Dues and sponsor money raise a budget on top of the cap the treasurer signed (Day 13).
+  const fundingRows = await db()
+    .select({ mandateId: schema.funding.mandateId, total: sql<number>`sum(${schema.funding.amountCents})::int` })
+    .from(schema.funding)
+    .where(eq(schema.funding.orgId, org.id))
+    .groupBy(schema.funding.mandateId);
+  const fundedOf = (id: string) => Number(fundingRows.find((f) => f.mandateId === id)?.total ?? 0);
 
   const ledger: LedgerRow[] = [
     ...payments.map((p) => ({ kind: "purchase" as const, mandateId: p.mandateId, status: p.status, totalCents: p.totalCents, lines: p.lines, createdAt: p.createdAt })),
@@ -77,7 +84,7 @@ export default async function TreasurerPage() {
       orgName={org.name}
       isTreasurer={me?.role === "treasurer"}
       envelopes={envelopes(
-        mandates.map((m) => ({ id: m.id, title: m.title, capCents: m.capCents, event: eventOf(m.eventId) })),
+        mandates.map((m) => ({ id: m.id, title: m.title, capCents: m.capCents + fundedOf(m.id), event: eventOf(m.eventId) })),
         ledger,
       )}
       payments={paymentRows}
