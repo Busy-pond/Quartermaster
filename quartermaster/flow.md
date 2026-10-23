@@ -25,6 +25,14 @@ Updated every time something is built or changed. The reasons behind each choice
 
 Honest summary: the whole money path is proven with real sandbox money. Agent → mandate engine → treasurer approval → PayPal capture → signed webhook → trust receipt all work, and so do refunds (webhook marks the order refunded and the budget gets the money back) and PayPal Payouts (a $1 test payout reached the personal account). Fake webhooks are rejected. What's left is building Flows B, C, E and F, deploying, and the submission items.
 
+### Day 15 (Oct 23): started, paused
+| Step | Result |
+|---|---|
+| Task 7 (MCP server) | ✅ done and committed (see below) |
+| Request schemas shared | ✅ every route's body schema moved to `src/lib/api/schemas.ts`; the routes validate with them |
+| OpenAPI 3.1 | 🟡 not finished: `src/lib/api/openapi.ts` builds the document from those schemas and `/api/openapi.json` serves it, but its output hasn't been checked yet |
+| Postman, newman in CI, APIMatic SDK, Playwright, polish pass | ⬜ not started |
+
 ### Day 14 (Oct 23): Quartermaster as an MCP server
 | Step | Result |
 |---|---|
@@ -294,7 +302,7 @@ Green = done and verified · amber = written, not run · dashed = not started
 | 12 | Oct 27 | AG Grid Community dashboard | ✅ done Oct 23 |
 | 13 | Oct 28 | Subscriptions, invoicing, refund button | ✅ built Oct 23 · 🟡 needs a sandbox subscription and a paid invoice |
 | 14 | Oct 29 | MCP server | ✅ done Oct 23 |
-| 15 | Oct 30 | OpenAPI, Postman, APIMatic SDK | ⬜ |
+| 15 | Oct 30 | OpenAPI, Postman, APIMatic SDK | 🟡 started Oct 23: schemas shared, OpenAPI not finished |
 | 16 | Oct 31 | Polish, accessibility, Playwright | ⬜ |
 | 17–18 | Nov 1–2 | AG Studio and its agent | ⬜ |
 | 19 | Nov 3 | Elastic | ⬜ |

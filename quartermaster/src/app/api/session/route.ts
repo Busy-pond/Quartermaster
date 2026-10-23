@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { SessionBody } from "@/lib/api/schemas";
 import { memberForRole, SESSION_COOKIE } from "@/lib/session";
 import { friendlyDbError } from "@/lib/http";
 
-const Body = z.object({ role: z.enum(["member", "treasurer"]) });
+const Body = SessionBody;
 
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { CaptureBody } from "@/lib/api/schemas";
 import { capturePayment } from "@/lib/purchases";
 import { requireMember } from "@/lib/session";
 import { handle } from "@/lib/http";
 
-const Body = z.object({ orderId: z.string().min(1) });
+const Body = CaptureBody;
 
 export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const me = await requireMember();
