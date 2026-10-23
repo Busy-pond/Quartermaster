@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { ReimbursementBody } from "@/lib/api/schemas";
 import { handle } from "@/lib/http";
 import { requireMember } from "@/lib/session";
 import { submitReimbursement } from "@/lib/reimbursements/service";
@@ -9,19 +9,7 @@ import { money } from "@/lib/format";
 
 export const maxDuration = 60;
 
-const Body = z.object({
-  mandateId: z.string().min(1),
-  imageDataUrl: z.string().startsWith("data:image/"),
-  note: z.string().max(500).nullish(),
-  manual: z
-    .object({
-      merchant: z.string().trim().min(1, "Enter the store name").max(120),
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-      totalDollars: z.number().positive("Enter the total paid").max(10_000),
-      category: z.string().min(1),
-    })
-    .nullish(),
-});
+const Body = ReimbursementBody;
 
 /** A volunteer submits a receipt photo. Gemini reads it unless the details were typed in by hand. */
 export const POST = handle(async (req: Request) => {
