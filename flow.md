@@ -2,7 +2,7 @@
 
 Updated every time something is built or changed. The reasons behind each choice are in [decision.md](decision.md).
 
-**Last updated:** Oct 23, 2026 · **Build plan position:** Days 1–6 and 8 verified; working through the remaining tasks · **Next:** see “What to do next” at the bottom
+**Last updated:** Oct 23, 2026 · **Build plan position:** Days 1–6 and 8 verified; app moved to the repo root (D52), manual checklist in TESTING.md · **Next:** see “What to do next” at the bottom
 
 ### Status key
 | Mark | Meaning |
@@ -24,6 +24,17 @@ Updated every time something is built or changed. The reasons behind each choice
 | Submission requirements | 0 | 3 | 6 |
 
 Honest summary: the whole money path is proven with real sandbox money. Agent → mandate engine → treasurer approval → PayPal capture → signed webhook → trust receipt all work, and so do refunds (webhook marks the order refunded and the budget gets the money back) and PayPal Payouts (a $1 test payout reached the personal account). Fake webhooks are rejected. What's left is building Flows B, C, E and F, deploying, and the submission items.
+
+### Repo move (Oct 23): app at the repo root
+| Step | Result |
+|---|---|
+| App moved from `quartermaster/` to the repo root (`git mv`, history kept) | ✅ 118 tracked files moved; `.env.local` still ignored |
+| Stray copies | ✅ leftover build output and a dev-server `layout.js` stub deleted after your OK; old dev server stopped |
+| CI from the root | 🟡 workflow updated (no `working-directory`); runs on the next push |
+| Render from the root | 🟡 `render.yaml` needs no change; not deployed |
+| `CLAUDE.md` with the working rules | ✅ added |
+| `TESTING.md`: manual checklist for the 9 features no person has used yet, plus the demo reset | ✅ written · 🟡 checks not run yet: that's your list |
+| Found along the way | After `npm run db:seed` the Beach mandate has $438 left, so the README's "4 folding tables → blocked under M7" only holds on today's test data. TESTING.md uses 12 tables. Fix the README before recording · `/treasurer` has no role guard (volunteers get a read-only view) |
 
 ### Day 15 (Oct 23): started, paused
 | Step | Result |
@@ -350,17 +361,22 @@ We're roughly on schedule: Days 1–6 are verified, with Day 7 due on Oct 22. Da
 | ~~`npm run check:env` passes with empty PayPal keys~~ | ✅ fixed: PayPal and Gemini keys are now required |
 | PayPal fails with a vague error on non-US (India) sandbox accounts | Document in the README: use a US business account, a Merchant app on it, and a US personal account to pay |
 | ~~`src/lib/units.test.ts` missing~~ | ✅ added, 16 cases pass |
-| Locked `quartermaster-update-2026-10-16.6/` folder | Delete once Windows releases it |
+| ~~Locked `quartermaster-update-2026-10-16.6/` folder~~ | ✅ gone |
 | Docs link to both `decision.md` and `DECISIONS.md` | Pick one name |
 | Webhook timeline entries appear in arrival order | Sort the timeline by PayPal's event time (optional polish) |
 | ~~`/_next` 404s and cross-origin warning through the tunnel~~ | 🟡 `allowedDevOrigins` added |
-| Repo still contains `quartermaster-update-2026-10-16.6/` and a stray `package-lock.json` above the project folder | Delete both and commit |
+| ~~Repo still contains `quartermaster-update-2026-10-16.6/` and a stray `package-lock.json` above the project folder~~ | ✅ gone; the app now lives at the repo root (D52) |
 
 ---
 
 ## What to do next
 
-**You:**
+**You (from Oct 23, repo root):**
+1. Work through [TESTING.md](TESTING.md) top to bottom, and send screenshots of anything marked ✕.
+2. Push, so CI runs from the root for the first time.
+3. Fix the README's MCP example (see "Repo move" above) before recording.
+
+**Older list (Oct 20):**
 1. Install update 2026-10-20.1 (steps in NOTES.md), then run `npm run db:push`, `npm test`, `npm run typecheck`, `npm run build`.
 2. Add `SANDBOX_VOLUNTEER_EMAIL` (your US sandbox personal account) to `.env.local`, and add the four payout events to the PayPal webhook.
 3. Test snap-to-reimburse end to end with a real receipt photo, and send me screenshots.
