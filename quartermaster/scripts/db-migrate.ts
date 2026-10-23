@@ -57,6 +57,15 @@ const STEPS: { name: string; sql: string }[] = [
       "trace_id" text not null, "created_at" timestamptz not null default now(), "updated_at" timestamptz not null default now())`,
   },
   { name: "invoices unique PayPal id", sql: `create unique index if not exists "invoices_paypal_id" on "invoices" ("paypal_invoice_id")` },
+  // Day 14: MCP server keys
+  {
+    name: "api_keys table",
+    sql: `create table if not exists "api_keys" (
+      "id" text primary key, "org_id" text not null references "orgs"("id"), "name" text not null, "hash" text not null, "hint" text not null,
+      "agent_member_id" text not null references "members"("id"), "created_by" text not null references "members"("id"),
+      "last_used_at" timestamptz, "revoked_at" timestamptz, "created_at" timestamptz not null default now())`,
+  },
+  { name: "api_keys unique hash", sql: `create unique index if not exists "api_keys_hash" on "api_keys" ("hash")` },
 ];
 
 async function main() {

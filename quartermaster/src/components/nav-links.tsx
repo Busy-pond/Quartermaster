@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/join", label: "Dues" },
   { href: "/mandates", label: "Mandates" },
   { href: "/treasurer", label: "Dashboard" },
+  { href: "/settings", label: "Agents" },
   { href: "/status", label: "Status" },
 ];
 

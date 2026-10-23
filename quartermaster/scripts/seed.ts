@@ -24,6 +24,7 @@ async function wipe() {
   await d.delete(schema.funding).where(eq(schema.funding.orgId, org.id));
   await d.delete(schema.invoices).where(eq(schema.invoices.orgId, org.id));
   await d.delete(schema.subscriptions).where(eq(schema.subscriptions.orgId, org.id));
+  await d.delete(schema.apiKeys).where(eq(schema.apiKeys.orgId, org.id));
   await d.delete(schema.policyChunks).where(eq(schema.policyChunks.orgId, org.id));
   await d.delete(schema.payments).where(eq(schema.payments.orgId, org.id));
   if (reqIds.length) await d.delete(schema.productOptions).where(inArray(schema.productOptions.requestId, reqIds));

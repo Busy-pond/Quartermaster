@@ -25,6 +25,16 @@ Updated every time something is built or changed. The reasons behind each choice
 
 Honest summary: the whole money path is proven with real sandbox money. Agent → mandate engine → treasurer approval → PayPal capture → signed webhook → trust receipt all work, and so do refunds (webhook marks the order refunded and the budget gets the money back) and PayPal Payouts (a $1 test payout reached the personal account). Fake webhooks are rejected. What's left is building Flows B, C, E and F, deploying, and the submission items.
 
+### Day 14 (Oct 23): Quartermaster as an MCP server
+| Step | Result |
+|---|---|
+| No key | ✅ 401 with a plain message |
+| MCP Inspector 2.10.1 `tools/list` | ✅ 7 tools |
+| Inspector: list_mandates → search_products → check_purchase → request_purchase | ✅ 4 folding tables, $179.88, on the Beach mandate with $0.83 left → **blocked under M7** (and M10 split-purchase flag) |
+| The blocked attempt | ✅ trust receipt "Asked by: External agent (Claude Desktop (test))", listed on /treasurer |
+| `/settings` keys page | ✅ renders · key created once, hash stored |
+| Claude Desktop | 🟡 config snippet on /settings and in the README; you need to paste it into Claude Desktop |
+
 ### Day 13 (Oct 23): money in and refunds
 | Step | Result |
 |---|---|
@@ -260,9 +270,9 @@ Green = done and verified · amber = written, not run · dashed = not started
 ## Flow F: external agents through MCP (Day 14)
 | # | Step | Status |
 |---|---|---|
-| F1 | `/api/mcp` server: request_purchase, list_mandates, get_trust_receipt, submit_reimbursement | ⬜ |
-| F2 | Tested with MCP Inspector and Claude Desktop | ⬜ |
-| F3 | Demo: an outside agent tries to exceed the cap and is blocked by the mandate | ⬜ (the engine already blocks it ✅) |
+| F1 | `/api/mcp` server: request_purchase, list_mandates, get_trust_receipt, submit_reimbursement | ✅ 7 tools, API keys (Oct 23) |
+| F2 | Tested with MCP Inspector and Claude Desktop | ✅ Inspector · 🟡 Claude Desktop needs you |
+| F3 | Demo: an outside agent tries to exceed the cap and is blocked by the mandate | ✅ blocked under M7 via Inspector |
 
 ---
 
@@ -283,7 +293,7 @@ Green = done and verified · amber = written, not run · dashed = not started
 | 11 | Oct 26 | Zapier and Resend approvals | ✅ signed links verified · 🟡 channels wait for your Zapier/Slack/Resend keys |
 | 12 | Oct 27 | AG Grid Community dashboard | ✅ done Oct 23 |
 | 13 | Oct 28 | Subscriptions, invoicing, refund button | ✅ built Oct 23 · 🟡 needs a sandbox subscription and a paid invoice |
-| 14 | Oct 29 | MCP server | ⬜ |
+| 14 | Oct 29 | MCP server | ✅ done Oct 23 |
 | 15 | Oct 30 | OpenAPI, Postman, APIMatic SDK | ⬜ |
 | 16 | Oct 31 | Polish, accessibility, Playwright | ⬜ |
 | 17–18 | Nov 1–2 | AG Studio and its agent | ⬜ |

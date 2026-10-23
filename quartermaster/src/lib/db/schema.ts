@@ -306,6 +306,27 @@ export const invoices = pgTable(
   (t) => [uniqueIndex("invoices_paypal_id").on(t.paypalInvoiceId)],
 );
 
+/**
+ * API keys for outside agents using the MCP server (Day 14). Only the hash is kept.
+ * Each key acts as its own "External agent" member, so receipts say who asked.
+ */
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: id(),
+    orgId: text("org_id").notNull().references(() => orgs.id),
+    name: text("name").notNull(),
+    hash: text("hash").notNull(),
+    hint: text("hint").notNull(),
+    agentMemberId: text("agent_member_id").notNull().references(() => members.id),
+    createdBy: text("created_by").notNull().references(() => members.id),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("api_keys_hash").on(t.hash)],
+);
+
 /** Small key-value cache for third-party responses (Channel3, later KERNEL). */
 export const apiCache = pgTable("api_cache", {
   key: text("key").primaryKey(),
