@@ -33,6 +33,7 @@ export interface ApiKey {
   /** Shown once, when the key is created. */
   key: string;
 }
+export type InsightsView = "spend_by_event" | "over_budget_share" | "pending_reimbursements" | "blocked_attempts" | "mandate_health";
 export interface UiMessage {
   id: string;
   role: "user" | "assistant";
@@ -177,6 +178,14 @@ export class QuartermasterClient {
   /** @route POST /api/invoices/{id}/sync */
   checkInvoice(id: string) {
     return this.json<{ status: string }>("POST", `/api/invoices/${id}/sync`);
+  }
+
+  // ---- Dashboard
+
+  /** Read-only treasurer figures (money in cents). `threshold` is for over_budget_share, `days` for blocked_attempts. @route GET /api/treasurer/insights */
+  insights<T = unknown>(view: InsightsView, opts: { threshold?: number; days?: number } = {}) {
+    const q = new URLSearchParams({ view, ...Object.fromEntries(Object.entries(opts).map(([k, v]) => [k, String(v)])) });
+    return this.json<{ view: InsightsView; asOf: string; source: string; result: T }>("GET", `/api/treasurer/insights?${q}`);
   }
 
   // ---- Agents (MCP)

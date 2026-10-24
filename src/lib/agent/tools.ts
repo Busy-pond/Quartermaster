@@ -12,7 +12,7 @@ import { z } from "zod";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { searchProducts } from "@/lib/integrations/channel3";
-import { mandateUsage, previewPurchase, proposePurchase } from "@/lib/purchases";
+import { audit, mandateUsage, previewPurchase, proposePurchase } from "@/lib/purchases";
 import { CLAUSES, type Decision } from "@/lib/mandates/engine";
 import { search } from "@/lib/integrations/search";
 import { loadVerifications, verifyOptions } from "@/lib/verify/options";
@@ -20,6 +20,7 @@ import { flags } from "@/lib/flags";
 import { notifyLater } from "@/lib/approvals/notify";
 import { draftSponsorInvoice } from "@/lib/funding/service";
 import { unitsPerListing } from "@/lib/units";
+import { TOOL_EVENT, withTraces, type ToolTrace } from "@/lib/traces/trace";
 
 export interface AgentContext {
   orgId: string;
@@ -329,9 +330,22 @@ export function buildTools(ctx: AgentContext) {
       },
     }),
   };
+  // Every call is timed and recorded with the request's trace id (Day 19).
+  const traced = withTraces(tools, (t) => recordTrace(ctx, t));
   // Live verification costs a model step, so the agent only gets it when KERNEL is on.
-  if (flags.kernel()) return tools;
+  if (flags.kernel()) return traced;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { verifyProducts, ...withoutVerify } = tools;
+  const { verifyProducts, ...withoutVerify } = traced;
   return withoutVerify;
+}
+
+function recordTrace(ctx: AgentContext, t: ToolTrace) {
+  return audit({
+    orgId: ctx.orgId,
+    traceId: ctx.traceId,
+    actor: "agent",
+    type: TOOL_EVENT,
+    message: `${t.tool} → ${t.outcome} in ${t.latencyMs} ms${t.error ? `: ${t.error}` : ""}`,
+    payload: { ...t, memberId: ctx.memberId, requestId: ctx.requestId },
+  }).catch((e) => console.error("Trace not recorded", e instanceof Error ? e.message : e));
 }

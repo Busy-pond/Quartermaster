@@ -2,7 +2,11 @@
 
 Updated every time something is built or changed. The reasons behind each choice are in [decision.md](decision.md).
 
-**Last updated:** Oct 24, 2026 · **Build plan position:** Days 1–6 and 8 verified; Days 15–16 (Task 8) built, newman verified, Playwright smoke test written but not run (needs a Neon branch); manual checklist in TESTING.md · **Next:** see “What to do next” at the bottom
+**Last updated:** Oct 24, 2026 · **Build plan position:** Days 1–6 and 8 verified; Days 15–16 (Task 8) built; Days 17–18 (Task 9, AG Studio) built early with the trial key; Day 19 (Task 10, Elastic) built early and verified on a local Elasticsearch, no Elastic trial yet; manual checklist in TESTING.md · **Next:** see “What to do next” at the bottom
+
+> ⏰ **AG Studio trial started Oct 24 → ends about Dec 8**, before judging ends (Dec 15). Around Nov 25, ask AG Grid for an extension or a hackathon key. If it lapses, remove `AG_STUDIO_LICENSE_KEY` and /treasurer falls back to the Community dashboard (D57, D58).
+
+> ⏰ **Elastic Cloud trial: not started.** Start the 14-day serverless trial on Nov 3 (not before Nov 1). Around **Nov 15**, fill in Elastic's 30-day self-extension form so it lasts to about Dec 15. Everything works on the free local Elasticsearch until then (D65), and with Elastic off it falls back to pgvector and Postgres (D62, D64).
 
 ### Status key
 | Mark | Meaning |
@@ -19,7 +23,7 @@ Updated every time something is built or changed. The reasons behind each choice
 | Flow B: snap-to-reimburse | 6 | 0 | 0 |
 | Flow C: money in (dues, invoices) | 0 | 0 | 3 |
 | Flow D: refunds and exceptions | 1 | 0 | 1 (+2 optional) |
-| Flow E: treasurer dashboard | 0 | 1 | 3 |
+| Flow E: treasurer dashboard | 3 | 1 | 0 |
 | Flow F: external agents (MCP) | 0 | 0 | 3 |
 | Submission requirements | 0 | 3 | 6 |
 
@@ -35,6 +39,31 @@ Honest summary: the whole money path is proven with real sandbox money. Agent �
 | `CLAUDE.md` with the working rules | ✅ added |
 | `TESTING.md`: manual checklist for the 9 features no person has used yet, plus the demo reset | ✅ written · 🟡 checks not run yet: that's your list |
 | Found along the way | After `npm run db:seed` the Beach mandate has $438 left, so the README's "4 folding tables → blocked under M7" only holds on today's test data. TESTING.md uses 12 tables. Fix the README before recording · `/treasurer` has no role guard (volunteers get a read-only view) |
+
+### Day 19, built Oct 24: Elastic (Task 10). No trial started, no paid endpoint called
+**Task 10: all 5 checkpoints done** on a local Elasticsearch 9.1.0 (docker-compose). Left: Elastic Cloud with Jina embeddings once the trial starts (Nov 3).
+| Checkpoint | Result |
+|---|---|
+| 1. Search adapter interface, pgvector default | ✅ contract moved to `src/lib/search/adapter.ts` (pure; `SearchSource` now includes "elastic"); `pickBackend()` returns pgvector unless an Elastic backend is supplied; `search()` uses it · adapter 2 tests |
+| 2. Elastic adapter, `ELASTIC_ENABLED=false`, fallback on any error | ✅ `src/lib/integrations/elastic.ts` (REST over fetch, no new package) + pure `src/lib/search/elastic-query.ts` (hybrid RRF query, mappings, `withFallback`) · off by default, /status row "Elastic hybrid search" · ✅ fallback proven: dead local port → "answered from pgvector" · ✅ **real Elasticsearch**: `searchPolicy` and `purchaseHistory` answered with `source: "elastic"` |
+| 3. Agent traces (D63) | ✅ `withTraces()` in `src/lib/traces/trace.ts` wraps every tool (chat and MCP): trace id, latency, outcome → `agent.tool` row in `audit_events`, mirrored to Elastic `qm-events` · ✅ real run: 7 tool calls → 7 audit rows ("checkPurchase → deny in 1992 ms") and 7 Elastic docs · receipts leave tool rows out |
+| 4. ES\|QL anomaly tile (D64) | ✅ `ANOMALY_ESQL` (repeated blocked attempts per member per day, refund spikes per day, threshold 3) runs on 9.1.0 · tile under both /treasurer views · ✅ 3 denied dry runs → "Repeated blocked attempts · 3 by Arjun Mehta" from ES\|QL, and the identical row from the Postgres fallback · ✅ dead URL → "computed from Postgres" note · ✅ production build: tile renders in Studio and classic views, /status shows Elastic live · test rows deleted afterwards |
+| 5. docker-compose for local Elasticsearch (D65) | ✅ `docker-compose.yml` (9.1.0, security off, 127.0.0.1 only) + `npm run elastic:sync` (13 clauses, 27 ledger rows, 68 audit events) · English analyzer added after a stopword miss |
+| Search quality vs pgvector (D65) | ✅ policy: right clause in the top 3 for 6/6 queries on both; pgvector ranks it first a bit more often · ✅ history: Elastic matches or beats pgvector on 4/4 · 🟡 semantic half (Jina) needs Elastic Cloud |
+| `npm test`, `npm run typecheck`, build | ✅ 172/172 (new: traces 6, anomalies 7) · types clean · build clean |
+
+### Days 17–18, built Oct 24: AG Studio dashboard and the Treasurer agent (Task 9)
+| Step | Result |
+|---|---|
+| `npm test`, `npm run typecheck`, `npm run build` (into `.next-check`) | ✅ 149/149 (new: insights 11, Studio tables 3, Gemini turn 7) · types clean · build clean |
+| `/treasurer` in AG Studio 3.0.0 behind `AG_STUDIO_ENABLED` + `AG_STUDIO_LICENSE_KEY`; `?view=classic` or no key → Community page | ✅ checked in Chromium on a production build with a **placeholder** key: renders, only console errors are "Invalid License Key" · 🟡 not yet seen with your real trial key |
+| Custom widgets: Budget envelope, Reimbursement queue (inline approve), Mandate health | ✅ all three render live data (Beach 99.9%, 1 receipt waiting, approval rate 75%, M7 and M10 fired most) · 🟡 Approve not clicked inside Studio (same button and route as the Community grid, verified Oct 23) |
+| Theme from the desk tokens, saved default layout, Save layout / Reset | ✅ theme and default layout seen · 🟡 Save/Reset not clicked |
+| Treasurer agent (Agent Framework, Gemini via `/api/studio/llm`) | ✅ live Gemini: "Which events are above 80% of budget?" → `over_budget_share` → read the page → filtered Budget envelopes to `used_pct ≥ 80` → answered "Beach Cleanup Drive … 99.9% ($599.17 of $600.00)" |
+| `GET /api/treasurer/insights`, OpenAPI, SDK `insights()`, Postman (46 requests) | ✅ spec and SDK tests pass, collection rebuilt · 🟡 newman not re-run |
+| /status row "AG Studio dashboard" | ✅ live with a key, fallback without |
+| Follow-up: one "waiting" rule (D61) | ✅ dev server, live data: classic "Waiting for you" 2 = 0 receipts + 2 purchases stamped "Needs approval"; Studio Mandate health "Waiting" 2 · 151/151 tests |
+| Follow-up: licence key from `.env.local` | ✕ first key (52 characters) rejected · ✅ replaced with the real trial key: after a dev restart the /treasurer console shows only React's DevTools notice, no licence error and no watermark (Oct 24) |
 
 ### Days 15–16 (Oct 24): API docs, Postman, SDK, tests and polish (Task 8)
 | Step | Result |
@@ -292,8 +321,8 @@ Green = done and verified · amber = written, not run · dashed = not started
 |---|---|---|
 | E1 | Mandates, remaining budget, pending approvals, recent payments | 🟡 `src/app/mandates/page.tsx` |
 | E2 | AG Grid Community dashboard with charts and a custom theme | ✅ `/treasurer` (Oct 23) |
-| E3 | AG Studio with 3 custom widgets | ⬜ Day 17 (trial starts Nov 1) |
-| E4 | Ask a question, get a widget (Studio Agent Framework) | ⬜ Day 18 |
+| E3 | AG Studio with 3 custom widgets | ✅ rendered with a placeholder key (Oct 24) · 🟡 real trial key · `src/components/studio/` |
+| E4 | Ask a question, get a widget (Studio Agent Framework) | ✅ "above 80% of budget" → filtered Budget envelopes widget, live Gemini (Oct 24) · `treasurer-agent.ts`, `/api/studio/llm` |
 
 ## Flow F: external agents through MCP (Day 14)
 | # | Step | Status |
@@ -324,8 +353,8 @@ Green = done and verified · amber = written, not run · dashed = not started
 | 14 | Oct 29 | MCP server | ✅ done Oct 23 |
 | 15 | Oct 30 | OpenAPI, Postman, APIMatic SDK | ✅ OpenAPI + Postman + newman verified Oct 24 · 🟡 APIMatic SDK/portal need your account |
 | 16 | Oct 31 | Polish, accessibility, Playwright | 🟡 built Oct 24; smoke test and CI need a Neon branch |
-| 17–18 | Nov 1–2 | AG Studio and its agent | ⬜ |
-| 19 | Nov 3 | Elastic | ⬜ |
+| 17–18 | Nov 1–2 | AG Studio and its agent | ✅ built Oct 24 (trial started early, D57) · 🟡 needs your trial key in `.env.local` and on Render |
+| 19 | Nov 3 | Elastic | ✅ built Oct 24 on local Elasticsearch · 🟡 Elastic Cloud + Jina after the trial starts Nov 3 |
 | 20 | Nov 4 | Bryntum (optional), go-live hardening | ⬜ |
 | 21–23 | Nov 5–7 | Freeze, README, video, submit | ⬜ |
 
@@ -341,10 +370,10 @@ We're roughly on schedule: Days 1–6 are verified, with Day 7 due on Oct 22. Da
 | Render | 🟡 blueprint written | Day 7 deploy |
 | KERNEL | ⬜ | Day 10 |
 | Zapier MCP | ⬜ | Day 11 |
-| AG Grid / AG Studio | ⬜ | Days 12, 17–18 |
+| AG Grid / AG Studio | ✅ Community dashboard (Day 12) · ✅ AG Studio + Treasurer agent built (Oct 24) · 🟡 trial key | Days 12, 17–18 |
 | Postman | 🟡 collection + newman in CI written; publish the public workspace | Day 15 |
 | APIMatic | 🟡 OpenAPI ready to import; SDK/portal not generated yet | Day 15 (and the PayPal context plugin while coding) |
-| Elastic | ⬜ | Day 19 |
+| Elastic | ✅ local Elasticsearch: hybrid-search adapter, agent traces, ES\|QL anomaly tile · 🟡 Elastic Cloud trial (Nov 3) | Day 19 |
 | Bryntum | ➖ | Day 20, optional |
 
 ## Submission requirements
@@ -379,6 +408,17 @@ We're roughly on schedule: Days 1–6 are verified, with Day 7 due on Oct 22. Da
 ---
 
 ## What to do next
+
+**You (Task 10, Elastic, from Oct 24):**
+1. Nothing needed now. To see it yourself: `docker compose up -d elasticsearch`, add `ELASTIC_ENABLED=true` and `ELASTIC_URL=http://localhost:9200` to `.env.local`, run `npm run elastic:sync`, restart the dev server, then check /status and the "Unusual activity" tile at the bottom of /treasurer. Leave `ELASTIC_ENABLED=false` on Render until Elastic Cloud exists.
+2. Nov 3: start the Elastic Cloud serverless trial, create an API key and a Jina inference endpoint, and send me the endpoint URL and inference id (not the key). I'll wire `ELASTIC_INFERENCE_ID` and measure hybrid search.
+3. Around Nov 15: Elastic's 30-day self-extension form.
+
+**You (Task 9, AG Studio, from Oct 24):**
+1. ~~Trial key in `.env.local`~~ ✅ done and accepted (Oct 24).
+2. As the treasurer, open /treasurer, ask "Which events are above 80% of budget?" in the AI Assistant panel, and send me a screenshot. Also try Save layout, Reset and Approve in the Reimbursement queue widget.
+3. When you deploy: add `AG_STUDIO_LICENSE_KEY` on Render (render.yaml already lists it).
+4. Around Nov 25: ask AG Grid to extend the trial past Dec 15.
 
 **You (Task 8, from Oct 24):** see [TESTING.md](TESTING.md) section 10.
 1. Create a Neon branch for tests, run `db:migrate` and `db:seed` on it, then `npm run test:e2e` with `E2E_DATABASE_URL` set. Send me the result.

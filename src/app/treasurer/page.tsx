@@ -1,96 +1,53 @@
-import { desc, eq, sql } from "drizzle-orm";
-import { db, schema } from "@/lib/db";
+import Link from "next/link";
 import { currentMember, demoOrg } from "@/lib/session";
-import { envelopes, exceptionsOverTime, spendByCategory, type LedgerRow } from "@/lib/dashboard/aggregate";
-import { TreasurerDashboard, type PaymentGridRow, type ReimbursementGridRow } from "@/components/treasurer-dashboard";
+import { flags } from "@/lib/flags";
+import { loadDashboard } from "@/lib/dashboard/load";
+import { TreasurerDashboard } from "@/components/treasurer-dashboard";
+import { TreasurerStudio } from "@/components/studio/treasurer-studio";
+import { AnomalyTile } from "@/components/anomaly-tile";
+import { loadAnomalies } from "@/lib/traces/load";
 
 export const dynamic = "force-dynamic";
 
-/** Day 12: the treasurer's dashboard on AG Grid Community + AG Charts Community. Stays as the fallback once AG Studio arrives. */
-export default async function TreasurerPage() {
+/**
+ * Day 17–18: the treasurer's dashboard in AG Studio when AG_STUDIO_ENABLED is on and a
+ * licence key is set. Otherwise (or with ?view=classic) the Day 12 page on AG Grid
+ * Community + AG Charts Community, which is the fallback.
+ */
+export default async function TreasurerPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const org = await demoOrg();
   if (!org) return <p className="text-muted">Demo org not found — run <code>npm run db:seed</code>.</p>;
-  const me = await currentMember();
+  const [me, data, anomalies, { view }] = await Promise.all([currentMember(), loadDashboard(org.id), loadAnomalies(org.id), searchParams]);
+  const isTreasurer = me?.role === "treasurer";
 
-  const [mandates, events, payments, reimbursements, members] = await Promise.all([
-    db().query.mandates.findMany({ where: eq(schema.mandates.orgId, org.id) }),
-    db().query.events.findMany({ where: eq(schema.events.orgId, org.id) }),
-    db().select().from(schema.payments).where(eq(schema.payments.orgId, org.id)).orderBy(desc(schema.payments.createdAt)).limit(500),
-    db()
-      .select({
-        id: schema.reimbursements.id,
-        memberId: schema.reimbursements.memberId,
-        mandateId: schema.reimbursements.mandateId,
-        merchant: schema.reimbursements.merchant,
-        receiptDate: schema.reimbursements.receiptDate,
-        totalCents: schema.reimbursements.totalCents,
-        currency: schema.reimbursements.currency,
-        status: schema.reimbursements.status,
-        lines: schema.reimbursements.lines,
-        duplicateOf: schema.reimbursements.duplicateOf,
-        rejectedReason: schema.reimbursements.rejectedReason,
-        createdAt: schema.reimbursements.createdAt,
-      })
-      .from(schema.reimbursements)
-      .where(eq(schema.reimbursements.orgId, org.id))
-      .orderBy(desc(schema.reimbursements.createdAt))
-      .limit(500),
-    db().query.members.findMany({ where: eq(schema.members.orgId, org.id) }),
-  ]);
-  // Dues and sponsor money raise a budget on top of the cap the treasurer signed (Day 13).
-  const fundingRows = await db()
-    .select({ mandateId: schema.funding.mandateId, total: sql<number>`sum(${schema.funding.amountCents})::int` })
-    .from(schema.funding)
-    .where(eq(schema.funding.orgId, org.id))
-    .groupBy(schema.funding.mandateId);
-  const fundedOf = (id: string) => Number(fundingRows.find((f) => f.mandateId === id)?.total ?? 0);
-
-  const ledger: LedgerRow[] = [
-    ...payments.map((p) => ({ kind: "purchase" as const, mandateId: p.mandateId, status: p.status, totalCents: p.totalCents, lines: p.lines, createdAt: p.createdAt })),
-    ...reimbursements.map((r) => ({ kind: "reimbursement" as const, mandateId: r.mandateId, status: r.status, totalCents: r.totalCents ?? 0, lines: r.lines ?? [], createdAt: r.createdAt })),
-  ];
-  const eventOf = (id: string | null) => events.find((e) => e.id === id)?.name ?? null;
-  const nameOf = (id: string) => members.find((m) => m.id === id)?.name ?? "A volunteer";
-  const titleOf = (id: string | null) => mandates.find((m) => m.id === id)?.title ?? "—";
-
-  const paymentRows: PaymentGridRow[] = payments.map((p) => ({
-    id: p.id,
-    date: p.createdAt.toISOString(),
-    items: p.lines.map((l) => `${l.quantity}× ${l.description}`).join(", "),
-    vendor: p.vendor,
-    mandate: titleOf(p.mandateId),
-    amountCents: p.totalCents,
-    currency: p.currency,
-    status: p.status,
-    clause: p.decision.clause,
-    orderId: p.paypalOrderId,
-    captureId: p.paypalCaptureId,
-  }));
-  const reimbursementRows: ReimbursementGridRow[] = reimbursements.map((r) => ({
-    id: r.id,
-    date: r.createdAt.toISOString(),
-    volunteer: nameOf(r.memberId),
-    merchant: r.merchant ?? "Receipt",
-    receiptDate: r.receiptDate,
-    mandate: titleOf(r.mandateId),
-    amountCents: r.totalCents ?? 0,
-    currency: r.currency ?? "USD",
-    status: r.status,
-    note: r.status === "rejected" ? r.rejectedReason : r.duplicateOf ? "Possible duplicate" : null,
-  }));
+  if (flags.agStudio() && view !== "classic")
+    return (
+      <div className="space-y-6">
+        <TreasurerStudio orgName={org.name} isTreasurer={isTreasurer} licenseKey={process.env.AG_STUDIO_LICENSE_KEY ?? ""} assistant={flags.agStudioAssistant()} data={data} />
+        <AnomalyTile report={anomalies} />
+      </div>
+    );
 
   return (
-    <TreasurerDashboard
-      orgName={org.name}
-      isTreasurer={me?.role === "treasurer"}
-      envelopes={envelopes(
-        mandates.map((m) => ({ id: m.id, title: m.title, capCents: m.capCents + fundedOf(m.id), event: eventOf(m.eventId) })),
-        ledger,
+    <>
+      {flags.agStudio() && (
+        <p className="mb-4 text-sm text-muted">
+          Classic view (AG Grid Community). <Link href="/treasurer" className="underline">Back to the AG Studio dashboard</Link>
+        </p>
       )}
-      payments={paymentRows}
-      reimbursements={reimbursementRows}
-      byCategory={spendByCategory(ledger)}
-      exceptions={exceptionsOverTime(ledger, new Date(), 14)}
-    />
+      <TreasurerDashboard
+        orgName={org.name}
+        isTreasurer={isTreasurer}
+        envelopes={data.envelopes}
+        payments={data.payments}
+        reimbursements={data.reimbursements}
+        byCategory={data.byCategory}
+        exceptions={data.exceptions}
+        awaitingTreasurer={data.awaitingTreasurer}
+      />
+      <div className="mt-8">
+        <AnomalyTile report={anomalies} />
+      </div>
+    </>
   );
 }

@@ -12,6 +12,8 @@ import type { ConsideredOption } from "@/lib/db/schema";
 import { evaluate, SPLIT_WINDOW_MS, type Decision, type Ledger, type Mandate, type ProposalLine } from "@/lib/mandates/engine";
 import { captureIdOf, captureOrder, createOrder } from "@/lib/paypal/client";
 import { indexPurchase } from "@/lib/integrations/search";
+import { mirrorEvents } from "@/lib/traces/sink";
+import { TOOL_EVENT } from "@/lib/traces/trace";
 
 type MandateRow = typeof schema.mandates.$inferSelect;
 type PaymentRow = typeof schema.payments.$inferSelect;
@@ -104,7 +106,11 @@ export async function audit(e: {
   message: string;
   payload?: unknown;
 }) {
-  await db().insert(schema.auditEvents).values({ ...e, paymentId: e.paymentId ?? null, payload: e.payload ?? null });
+  const rows = await db()
+    .insert(schema.auditEvents)
+    .values({ ...e, paymentId: e.paymentId ?? null, payload: e.payload ?? null })
+    .returning();
+  void mirrorEvents(rows); // Elastic copy for the anomaly query; never awaited, never throws
 }
 
 export async function getMandate(id: string) {
@@ -274,7 +280,12 @@ export async function mandateUsage(m: MandateRow) {
   };
 }
 
+/** A trace's timeline for receipts and MCP, without the per-tool-call agent traces. */
 export async function recentAudit(traceId: string) {
-  return db().select().from(schema.auditEvents).where(eq(schema.auditEvents.traceId, traceId)).orderBy(schema.auditEvents.createdAt);
+  return db()
+    .select()
+    .from(schema.auditEvents)
+    .where(and(eq(schema.auditEvents.traceId, traceId), ne(schema.auditEvents.type, TOOL_EVENT)))
+    .orderBy(schema.auditEvents.createdAt);
 }
 

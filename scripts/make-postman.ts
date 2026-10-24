@@ -16,6 +16,7 @@ interface Case {
   /** An OpenAPI path, e.g. /api/payments/{id}/order; {id} becomes {{unknownId}} unless `id` is given. */
   path: string;
   id?: string;
+  query?: Record<string, string>;
   body?: unknown;
   headers?: Record<string, string>;
   status: number;
@@ -37,6 +38,7 @@ const refused = (name: string, method: Case["method"], path: string, body?: unkn
   checks: ['pm.expect(json.error).to.eql("Not signed in")'],
 });
 const MCP_LIST = { jsonrpc: "2.0", id: 1, method: "tools/list" };
+const STUDIO_TURN = { input: [{ id: "u1", kind: "input", type: "message", role: "user", status: "completed", content: [{ type: "text", text: "Which events are above 80% of budget?" }] }], responseFormat: { type: "text" } };
 const MCP_HEADERS = { Authorization: "Bearer {{apiKey}}", Accept: "application/json, text/event-stream" };
 
 const CASES: Case[] = [
@@ -74,6 +76,8 @@ const CASES: Case[] = [
   refused("Check an invoice", "POST", "/api/invoices/{id}/sync"),
   refused("Create an API key", "POST", "/api/keys", { name: "newman" }),
   refused("Revoke an API key", "DELETE", "/api/keys/{id}"),
+  { ...refused("Treasurer insights", "GET", "/api/treasurer/insights"), query: { view: "mandate_health" } },
+  refused("AG Studio agent turn", "POST", "/api/studio/llm", STUDIO_TURN),
 
   { folder: "3. Demo sign-in", name: "Sign-in without a role is rejected", method: "POST", path: "/api/session", body: {}, status: 400, checks: [ANY_ERROR] },
   { folder: "3. Demo sign-in", name: "Sign in as the volunteer", method: "POST", path: "/api/session", body: { role: "member" }, status: 200, checks: ['pm.expect(json.member.role).to.eql("member")'] },
@@ -91,6 +95,19 @@ const CASES: Case[] = [
   { folder: VOLUNTEER, name: "Check an unknown invoice", method: "POST", path: "/api/invoices/{id}/sync", status: 404, checks: ['pm.expect(json.error).to.eql("Not found")'] },
   { folder: VOLUNTEER, name: "Revoke a key as the volunteer", method: "DELETE", path: "/api/keys/{id}", status: 400, checks: ['pm.expect(json.error).to.include("treasurer")'] },
   { folder: VOLUNTEER, name: "Chat needs messages", method: "POST", path: "/api/chat", body: { id: "" }, status: 400, checks: ['pm.expect(json.error).to.eql("Bad request")'] },
+  { folder: VOLUNTEER, name: "Insights need a known view", method: "GET", path: "/api/treasurer/insights", query: { view: "everything" }, status: 400, checks: [ANY_ERROR] },
+  {
+    folder: VOLUNTEER,
+    name: "Mandates at or above 80% of their cap",
+    method: "GET",
+    path: "/api/treasurer/insights",
+    query: { view: "over_budget_share", threshold: "80" },
+    status: 200,
+    checks: ['pm.expect(json.source).to.eql("live ledger")', "pm.expect(json.result).to.be.an('array')", "json.result.forEach(e => pm.expect(e.usedPct).to.be.at.least(80))"],
+  },
+  { folder: VOLUNTEER, name: "Mandate health", method: "GET", path: "/api/treasurer/insights", query: { view: "mandate_health" }, status: 200, checks: ["pm.expect(json.result.overall.attempts).to.be.a('number')", "pm.expect(json.result.byMandate).to.be.an('array')"] },
+  { folder: VOLUNTEER, name: "A Studio turn needs a response format", method: "POST", path: "/api/studio/llm", body: { input: [] }, status: 400, checks: [ANY_ERROR] },
+  { folder: VOLUNTEER, name: "A Studio turn with the scripted model", method: "POST", path: "/api/studio/llm", body: STUDIO_TURN, status: 200, checks: ['pm.expect(json.status).to.eql("completed")', 'pm.expect(json.output[0].type).to.eql("message")'] },
   { folder: VOLUNTEER, name: "Sign out", method: "DELETE", path: "/api/session", status: 200, checks: ["pm.expect(json.ok).to.eql(true)"] },
 
   { folder: TREASURER, name: "Sign in as the treasurer", method: "POST", path: "/api/session", body: { role: "treasurer" }, status: 200, checks: ['pm.expect(json.member.role).to.eql("treasurer")'] },
@@ -121,6 +138,8 @@ const spec = openApiDocument("{{baseUrl}}") as unknown as { paths: Record<string
 
 function requestItem(c: Case) {
   const path = c.path.replace("{id}", c.id ?? UNKNOWN);
+  const query = Object.entries(c.query ?? {}).map(([key, value]) => ({ key, value }));
+  const search = query.length ? `?${query.map((q) => `${q.key}=${q.value}`).join("&")}` : "";
   const op = spec.paths[c.path]?.[c.method.toLowerCase()];
   if (!op) throw new Error(`${c.method} ${c.path} is not in the OpenAPI document`);
   const exec = [
@@ -134,7 +153,7 @@ function requestItem(c: Case) {
       method: c.method,
       header: [...(c.body ? [{ key: "Content-Type", value: "application/json" }] : []), ...Object.entries(c.headers ?? {}).map(([key, value]) => ({ key, value }))],
       ...(c.body ? { body: { mode: "raw", raw: JSON.stringify(c.body, null, 2), options: { raw: { language: "json" } } } } : {}),
-      url: { raw: `{{baseUrl}}${path}`, host: ["{{baseUrl}}"], path: path.split("/").filter(Boolean) },
+      url: { raw: `{{baseUrl}}${path}${search}`, host: ["{{baseUrl}}"], path: path.split("/").filter(Boolean), ...(query.length ? { query } : {}) },
       description: [op.summary, op.description].filter(Boolean).join("\n\n"),
     },
   };

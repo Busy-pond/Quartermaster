@@ -125,3 +125,16 @@ Needs a throwaway Neon branch: Neon console → your project → Branches → Cr
 | 5 | GitHub → repo → Settings → Secrets and variables → Actions → add `CI_DATABASE_URL` (the branch string), push | The CI job "api-and-browser" runs newman and Playwright green |
 | 6 | apimatic.io → import the OpenAPI URL → generate the TypeScript SDK and the portal | Commit the SDK into `sdk/`; see `sdk/README.md` |
 | 7 | Tab through the home page, `/chat` and `/reimburse` at phone width; use a screen reader on one form | A visible focus ring everywhere; every field announced with its label |
+
+## 11. Elastic on a local Elasticsearch (Task 10)
+Needs Docker Desktop running. Nothing here touches Elastic Cloud.
+
+| # | Do this | Expect |
+|---|---|---|
+| 1 | `docker compose up -d elasticsearch`, wait ~30 s, open http://localhost:9200 | JSON with `"number" : "9.1.0"` |
+| 2 | In `.env.local`: `ELASTIC_ENABLED=true`, `ELASTIC_URL=http://localhost:9200`; run `npm run elastic:sync` | "✓ Elastic at http://localhost:9200: 13 policy clauses, … purchases and receipts, … audit events" |
+| 3 | Restart the dev server, open /status | "Elastic hybrid search" is live |
+| 4 | As a volunteer, ask the chat for 40 folding tables for the beach cleanup | The policy and history cards say the source is elastic |
+| 5 | As the treasurer, open /treasurer and scroll to "Unusual activity" | "Elastic ES\|QL over agent traces and the audit trail". After 3 blocked requests by one volunteer on the same day: "Repeated blocked attempts · 3 by <name>" |
+| 6 | `docker compose stop elasticsearch`, reload /treasurer | The tile still shows, with "Elastic didn't answer, so this was computed from Postgres." Chat search answers from pgvector |
+| 7 | Set `ELASTIC_ENABLED=false` again before you deploy | /status shows the fallback |

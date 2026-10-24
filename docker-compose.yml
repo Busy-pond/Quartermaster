@@ -1,0 +1,29 @@
+# Free local Elasticsearch for Quartermaster's Elastic features (Day 19): hybrid search,
+# agent traces and the ES|QL anomaly tile. No account, no trial, no key.
+#
+#   docker compose up -d elasticsearch
+#   then in .env.local:  ELASTIC_ENABLED=true  and  ELASTIC_URL=http://localhost:9200
+#   npm run elastic:sync      (copies policy, ledger and audit trail into the indices)
+#
+# Security is off, so keep it on localhost. Without an inference endpoint it searches
+# with BM25 keywords only; the semantic half of hybrid needs Elastic Cloud (ELASTIC_INFERENCE_ID).
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.license.self_generated.type=basic
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - qm-es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  qm-es-data:

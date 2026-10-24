@@ -717,6 +717,90 @@
             },
             "description": "Revoke an MCP API key"
           }
+        },
+        {
+          "name": "Treasurer insights",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Treasurer insights\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/treasurer/insights?view=mandate_health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "treasurer",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "view",
+                  "value": "mandate_health"
+                }
+              ]
+            },
+            "description": "Treasurer figures for the AG Studio agent\n\nRead-only, from the same ledger the mandate engine checks: spend by event, mandates at or above a share of their cap, receipts waiting, blocked attempts, mandate health (approval rate, rules that fired most). Money in integer cents."
+          }
+        },
+        {
+          "name": "AG Studio agent turn",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for AG Studio agent turn\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": [\n    {\n      \"id\": \"u1\",\n      \"kind\": \"input\",\n      \"type\": \"message\",\n      \"role\": \"user\",\n      \"status\": \"completed\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Which events are above 80% of budget?\"\n        }\n      ]\n    }\n  ],\n  \"responseFormat\": {\n    \"type\": \"text\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/studio/llm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "studio",
+                "llm"
+              ]
+            },
+            "description": "One AG Studio agent turn on Gemini\n\nCalled by the AG Studio adapter in the browser. Returns the model's text and tool calls; the browser runs the tools. The Gemini key stays on the server."
+          }
         }
       ]
     },
@@ -1334,6 +1418,220 @@
               ]
             },
             "description": "Chat with the purchasing agent\n\nAI SDK v6 UI message stream. Body: { id, messages } as sent by useChat. The agent can search, dry-run and propose; it cannot pay."
+          }
+        },
+        {
+          "name": "Insights need a known view",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Insights need a known view\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/treasurer/insights?view=everything",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "treasurer",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "view",
+                  "value": "everything"
+                }
+              ]
+            },
+            "description": "Treasurer figures for the AG Studio agent\n\nRead-only, from the same ledger the mandate engine checks: spend by event, mandates at or above a share of their cap, receipts waiting, blocked attempts, mandate health (approval rate, rules that fired most). Money in integer cents."
+          }
+        },
+        {
+          "name": "Mandates at or above 80% of their cap",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for Mandates at or above 80% of their cap\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.source).to.eql(\"live ledger\"); });",
+                  "pm.test(\"check 2\", () => { pm.expect(json.result).to.be.an('array'); });",
+                  "pm.test(\"check 3\", () => { json.result.forEach(e => pm.expect(e.usedPct).to.be.at.least(80)); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/treasurer/insights?view=over_budget_share&threshold=80",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "treasurer",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "view",
+                  "value": "over_budget_share"
+                },
+                {
+                  "key": "threshold",
+                  "value": "80"
+                }
+              ]
+            },
+            "description": "Treasurer figures for the AG Studio agent\n\nRead-only, from the same ledger the mandate engine checks: spend by event, mandates at or above a share of their cap, receipts waiting, blocked attempts, mandate health (approval rate, rules that fired most). Money in integer cents."
+          }
+        },
+        {
+          "name": "Mandate health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for Mandate health\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.result.overall.attempts).to.be.a('number'); });",
+                  "pm.test(\"check 2\", () => { pm.expect(json.result.byMandate).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/treasurer/insights?view=mandate_health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "treasurer",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "view",
+                  "value": "mandate_health"
+                }
+              ]
+            },
+            "description": "Treasurer figures for the AG Studio agent\n\nRead-only, from the same ledger the mandate engine checks: spend by event, mandates at or above a share of their cap, receipts waiting, blocked attempts, mandate health (approval rate, rules that fired most). Money in integer cents."
+          }
+        },
+        {
+          "name": "A Studio turn needs a response format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for A Studio turn needs a response format\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/studio/llm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "studio",
+                "llm"
+              ]
+            },
+            "description": "One AG Studio agent turn on Gemini\n\nCalled by the AG Studio adapter in the browser. Returns the model's text and tool calls; the browser runs the tools. The Gemini key stays on the server."
+          }
+        },
+        {
+          "name": "A Studio turn with the scripted model",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for A Studio turn with the scripted model\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.status).to.eql(\"completed\"); });",
+                  "pm.test(\"check 2\", () => { pm.expect(json.output[0].type).to.eql(\"message\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"input\": [\n    {\n      \"id\": \"u1\",\n      \"kind\": \"input\",\n      \"type\": \"message\",\n      \"role\": \"user\",\n      \"status\": \"completed\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Which events are above 80% of budget?\"\n        }\n      ]\n    }\n  ],\n  \"responseFormat\": {\n    \"type\": \"text\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/studio/llm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "studio",
+                "llm"
+              ]
+            },
+            "description": "One AG Studio agent turn on Gemini\n\nCalled by the AG Studio adapter in the browser. Returns the model's text and tool calls; the browser runs the tools. The Gemini key stays on the server."
           }
         },
         {

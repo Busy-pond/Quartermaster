@@ -53,6 +53,13 @@ export function integrations(): Integration[] {
       fallback: "Keyword matching over the same policy and purchases",
     },
     {
+      key: "elastic",
+      name: "Elastic hybrid search",
+      role: "Policy and history search in front of pgvector (keyword + Jina semantic, fused with RRF); agent traces and the ES|QL anomaly tile on /treasurer",
+      state: flags.elastic() ? "live" : "fallback",
+      fallback: "pgvector search above; traces stay in the audit table and the anomaly tile is computed from Postgres. Any Elastic error falls back the same way",
+    },
+    {
       key: "kernel",
       name: "KERNEL cloud browser",
       role: "Opens the buy link, screenshots it and reads the live price, stock and delivery",
@@ -65,6 +72,13 @@ export function integrations(): Integration[] {
       role: "Tells the treasurer, with a signed 72-hour link, when something needs approval",
       state: flags.zapier() ? "live" : flags.slack() || flags.resend() ? "fallback" : "off",
       fallback: flags.slack() || flags.resend() ? `Zapier off; using ${[flags.slack() && "Slack webhook", flags.resend() && "Resend email"].filter(Boolean).join(" and ")}` : "In-app list on the Mandates page only",
+    },
+    {
+      key: "agStudio",
+      name: "AG Studio dashboard",
+      role: "Treasurer dashboard with custom widgets, a saved layout and an AI Treasurer agent that builds widgets",
+      state: flags.agStudio() ? "live" : "fallback",
+      fallback: "The AG Grid Community + AG Charts dashboard (Day 12) on the same data",
     },
     {
       key: "channel3",
@@ -85,4 +99,10 @@ export const flags = {
   zapier: () => on("ZAPIER_ENABLED") && has("ZAPIER_MCP_URL"),
   slack: () => on("SLACK_ENABLED") && has("SLACK_WEBHOOK_URL"),
   resend: () => on("RESEND_ENABLED") && has("RESEND_API_KEY"),
+  /** The trial licence key runs out mid-December; switching this off brings back the Community page. */
+  /** Off unless set to exactly "true" (Day 19): no Elastic call is made until you choose to. */
+  elastic: () => process.env.ELASTIC_ENABLED === "true" && has("ELASTIC_URL"),
+  agStudio: () => on("AG_STUDIO_ENABLED") && has("AG_STUDIO_LICENSE_KEY"),
+  /** The Studio Treasurer agent runs on the same Gemini key as the chat agent. */
+  agStudioAssistant: () => has("GOOGLE_GENERATIVE_AI_API_KEY") || flags.aiMock(),
 };

@@ -30,4 +30,23 @@ export const RejectBody = z.object({ reason: z.string().max(300).default("") });
 
 export const SubscriptionBody = z.object({ subscriptionId: z.string().regex(/^I-[A-Z0-9]+$/, "Not a PayPal subscription id").describe("the id PayPal returns after the member approves") });
 
-export const KeyBody = z.object({ name: z.string().max(60).default("").describe("who will use the key, e.g. 'Claude Desktop'") });
+/** One AG Studio agent turn (AgLlmRequest), sent by the browser adapter in src/components/studio/gemini-adapter.ts. */
+export const StudioTurnBody = z.object({
+  input: z.array(z.object({ type: z.string() }).passthrough()).max(400).describe("the conversation so far, as AG Studio conversation items"),
+  instructions: z.string().max(60_000).optional(),
+  tools: z
+    .array(z.object({ name: z.string().min(1), description: z.string(), parameters: z.record(z.unknown()) }).passthrough())
+    .max(80)
+    .optional()
+    .describe("tool schemas the agent may call; the browser runs them, never the server"),
+  toolChoice: z.union([z.enum(["auto", "none", "required"]), z.object({ name: z.string() })]).optional(),
+  responseFormat: z.object({ type: z.enum(["text", "json"]), name: z.string().optional(), schema: z.record(z.unknown()).optional() }).passthrough(),
+});
+
+export const InsightsQuery = z.object({
+  view: z.enum(["spend_by_event", "over_budget_share", "pending_reimbursements", "blocked_attempts", "mandate_health"]),
+  threshold: z.coerce.number().min(0).max(1000).default(80).describe("over_budget_share only: percent of the cap used (spent + approved, not yet paid)"),
+  days: z.coerce.number().int().min(1).max(365).default(30).describe("blocked_attempts only: how far back"),
+});
+
+export const KeyBody =z.object({ name: z.string().max(60).default("").describe("who will use the key, e.g. 'Claude Desktop'") });

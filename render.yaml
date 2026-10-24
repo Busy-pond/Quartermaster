@@ -37,3 +37,7 @@ services:
         sync: false
       - key: CHANNEL3_ENABLED
         value: "true"
+      - key: AG_STUDIO_LICENSE_KEY
+        sync: false
+      - key: AG_STUDIO_ENABLED
+        value: "true"

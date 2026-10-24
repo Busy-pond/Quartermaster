@@ -15,8 +15,9 @@ import { BudgetBar } from "@/components/budget-bar";
 import { Stamp, stampFor } from "@/components/stamp";
 import { money, shortDate } from "@/lib/format";
 import { REIMBURSEMENT_STATUS, reimbursementStamp } from "@/lib/reimbursements/labels";
-import type { ReimbursementStatus } from "@/lib/db/schema";
 import type { Envelope } from "@/lib/dashboard/aggregate";
+import { awaitsTreasurer } from "@/lib/dashboard/insights";
+import type { PaymentGridRow, ReimbursementGridRow } from "@/lib/dashboard/load";
 
 // AG Grid and AG Charts each keep their own module registry.
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -30,6 +31,8 @@ const PAPER = "#f3f6f8";
 const BRAND = "#0f5b4a";
 const WARN = "#b7791f";
 const BAD = "#c4302b";
+/** Also themes the AG Studio dashboard, so both versions of /treasurer look like one app. */
+export const DESK_TOKENS = { INK, MUTED, LINE, PAPER, BRAND, WARN, BAD } as const;
 
 const gridTheme = themeQuartz.withParams({
   accentColor: BRAND,
@@ -54,35 +57,10 @@ const themeFor = (fontFamily: string): AgChartTheme => ({
   params: { fontFamily, foregroundColor: INK, subtleTextColor: MUTED, gridLineColor: LINE, backgroundColor: "#ffffff", fontSize: 13 },
 });
 
-export interface PaymentGridRow {
-  id: string;
-  date: string;
-  items: string;
-  vendor: string;
-  mandate: string;
-  amountCents: number;
-  currency: string;
-  status: string;
-  clause: string;
-  orderId: string | null;
-  captureId: string | null;
-}
-
-export interface ReimbursementGridRow {
-  id: string;
-  date: string;
-  volunteer: string;
-  merchant: string;
-  receiptDate: string | null;
-  mandate: string;
-  amountCents: number;
-  currency: string;
-  status: ReimbursementStatus;
-  note: string | null;
-}
+export type { PaymentGridRow, ReimbursementGridRow };
 
 /** AG Charts draws on a canvas and needs a real font name, not a CSS variable: read the one next/font applied to the body. */
-function useBodyFont() {
+export function useBodyFont() {
   return useSyncExternalStore(
     () => () => undefined,
     () => getComputedStyle(document.body).fontFamily,
@@ -117,17 +95,22 @@ function ReimbursementStatusCell({ data }: ICellRendererParams<ReimbursementGrid
 }
 
 function ApproveCell({ data, context }: ICellRendererParams<ReimbursementGridRow, unknown, { isTreasurer: boolean; refresh: () => void }>) {
+  if (!data) return null;
+  return <ApproveReimbursement row={data} isTreasurer={context.isTreasurer} onDone={context.refresh} />;
+}
+
+/** One-tap approve (the mandate is re-checked server-side before the payout). Shared with the AG Studio queue widget. */
+export function ApproveReimbursement({ row: data, isTreasurer, onDone }: { row: Pick<ReimbursementGridRow, "id" | "status" | "amountCents" | "volunteer">; isTreasurer: boolean; onDone: () => void }) {
   const [state, setState] = useState<"idle" | "busy" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
-  if (!data) return null;
-  const actionable = data.status === "needs_approval" || data.status === "failed";
+  const actionable = awaitsTreasurer({ kind: "reimbursement", status: data.status });
   if (!actionable)
     return (
       <Link href={`/reimbursements/${data.id}`} className="text-sm underline">
         Open
       </Link>
     );
-  if (!context.isTreasurer)
+  if (!isTreasurer)
     return (
       <Link href={`/reimbursements/${data.id}`} className="text-sm underline">
         Review
@@ -149,7 +132,7 @@ function ApproveCell({ data, context }: ICellRendererParams<ReimbursementGridRow
             setError(json.error ?? "Approval failed");
             return;
           }
-          context.refresh();
+          onDone();
         }}
       >
         {state === "busy" ? "Sending payout…" : data.status === "failed" ? "Retry payout" : "Approve"}
@@ -170,12 +153,13 @@ export function TreasurerDashboard(props: {
   reimbursements: ReimbursementGridRow[];
   byCategory: { category: string; spentCents: number; committedCents: number }[];
   exceptions: { day: string; blocked: number; refunded: number; refundedCents: number }[];
+  awaitingTreasurer: number;
 }) {
   const router = useRouter();
   const font = useBodyFont();
   const chartTheme = useMemo(() => themeFor(font), [font]);
   const [quick, setQuick] = useState("");
-  const queue = props.reimbursements.filter((r) => r.status === "needs_approval" || r.status === "failed");
+  const queue = props.reimbursements.filter((r) => awaitsTreasurer({ kind: "reimbursement", status: r.status }));
 
   const envelopeCols = useMemo<ColDef<Envelope>[]>(
     () => [
@@ -273,8 +257,8 @@ export function TreasurerDashboard(props: {
             <dd className="font-display text-2xl font-bold tabular-nums">{usd(totalLeft)}</dd>
           </div>
           <div>
-            <dt className="text-muted">Waiting for you</dt>
-            <dd className="font-display text-2xl font-bold tabular-nums">{queue.length}</dd>
+            <dt className="text-muted" title="Purchases and receipts that need your approval, and payouts to retry">Waiting for you</dt>
+            <dd className="font-display text-2xl font-bold tabular-nums">{props.awaitingTreasurer}</dd>
           </div>
         </dl>
       </div>

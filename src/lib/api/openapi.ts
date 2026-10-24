@@ -5,7 +5,7 @@
 import type { ZodTypeAny } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { APP_REVISION } from "@/lib/version";
-import { CaptureBody, KeyBody, RefundBody, ReimbursementBody, RejectBody, SessionBody, SubscriptionBody } from "./schemas";
+import { CaptureBody, InsightsQuery, KeyBody, RefundBody, ReimbursementBody, RejectBody, SessionBody, StudioTurnBody, SubscriptionBody } from "./schemas";
 
 type Auth = "session" | "apiKey" | "paypal" | "none";
 
@@ -17,6 +17,8 @@ interface Op {
   description?: string;
   auth: Auth;
   body?: ZodTypeAny;
+  /** A z.object whose keys become query parameters. */
+  query?: ZodTypeAny;
   ok: { status: number; description: string; example?: unknown; contentType?: string };
   errors?: number[];
 }
@@ -41,6 +43,8 @@ const OPS: Op[] = [
   { method: "post", path: "/api/keys", tag: "Agents", summary: "Create an MCP API key", description: "Treasurer only. The key is returned once; only its hash is stored.", auth: "session", body: KeyBody, ok: { status: 200, description: "Created", example: { id: "…", name: "Claude Desktop", hint: "qm_live_ab12…xy9z", key: "qm_live_…" } }, errors: [400, 401] },
   { method: "delete", path: "/api/keys/{id}", tag: "Agents", summary: "Revoke an MCP API key", auth: "session", ok: { status: 200, description: "Revoked", example: { ok: true } }, errors: [400, 401] },
   { method: "post", path: "/api/mcp", tag: "Agents", summary: "MCP server (streamable HTTP, JSON-RPC)", description: "Tools: list_mandates, search_products, check_purchase, request_purchase, search_policy, get_trust_receipt, submit_reimbursement. None can pay.", auth: "apiKey", ok: { status: 200, description: "JSON-RPC response" }, errors: [401] },
+  { method: "get", path: "/api/treasurer/insights", tag: "Dashboard", summary: "Treasurer figures for the AG Studio agent", description: "Read-only, from the same ledger the mandate engine checks: spend by event, mandates at or above a share of their cap, receipts waiting, blocked attempts, mandate health (approval rate, rules that fired most). Money in integer cents.", auth: "session", query: InsightsQuery, ok: { status: 200, description: "The figures", example: { view: "over_budget_share", asOf: "2026-11-01T10:00:00.000Z", source: "live ledger", result: [{ title: "Beach Cleanup supplies", usedPct: 99.9, remainingCents: 83 }] } }, errors: [400, 401] },
+  { method: "post", path: "/api/studio/llm", tag: "Dashboard", summary: "One AG Studio agent turn on Gemini", description: "Called by the AG Studio adapter in the browser. Returns the model's text and tool calls; the browser runs the tools. The Gemini key stays on the server.", auth: "session", body: StudioTurnBody, ok: { status: 200, description: "An AgLlmResponse (status failed with a readable error when the model is unavailable)", example: { id: "resp_…", status: "completed", output: [{ type: "function_call", name: "over_budget_share", arguments: '{"thresholdPct":80}' }] } }, errors: [400, 401] },
   { method: "post", path: "/api/webhooks/paypal", tag: "Webhooks", summary: "PayPal webhook receiver", description: "Signature verified with PayPal, stored by event id before processing (duplicates ignored).", auth: "paypal", ok: { status: 200, description: "Accepted", example: { ok: true } }, errors: [400] },
 ];
 
@@ -69,7 +73,11 @@ const SECURITY: Record<Auth, Record<string, string[]>[] | undefined> = {
 export function openApiDocument(serverUrl: string) {
   const paths: Record<string, Record<string, unknown>> = {};
   for (const op of OPS) {
-    const params = [...op.path.matchAll(/\{(\w+)\}/g)].map((m) => ({ name: m[1], in: "path", required: true, schema: { type: "string" } }));
+    const query = op.query ? (bodySchema(op.query) as { properties: Record<string, { description?: string }>; required?: string[] }) : null;
+    const params = [
+      ...[...op.path.matchAll(/\{(\w+)\}/g)].map((m) => ({ name: m[1], in: "path", required: true, schema: { type: "string" } })),
+      ...Object.entries(query?.properties ?? {}).map(([name, { description, ...schema }]) => ({ name, in: "query", required: query?.required?.includes(name) ?? false, ...(description ? { description } : {}), schema })),
+    ];
     const responses: Record<string, unknown> = {
       [op.ok.status]: {
         description: op.ok.description,
