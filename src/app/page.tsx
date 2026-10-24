@@ -40,8 +40,9 @@ export default function Landing() {
     null,
     2,
   );
+  // overflow-x-clip: a stamp lands at 2.4x scale (stamp-slam); it must not make the page scroll sideways mid-animation.
   return (
-    <div className="space-y-24 py-4">
+    <div className="space-y-24 overflow-x-clip py-4">
       <section className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-16">
         <div>
           <p className="text-sm font-medium text-brand">PayPal purchasing agent for volunteer teams</p>

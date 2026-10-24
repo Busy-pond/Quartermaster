@@ -1,4 +1,19 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+/** Sideways overflow, plus the elements that stick out past the right edge (named in the failure message). */
+function measure(page: Page) {
+  return page.evaluate(() => {
+    const root = document.documentElement;
+    const wide = Array.from(document.body.querySelectorAll<HTMLElement>("*"))
+      .map((el) => ({ el, right: el.getBoundingClientRect().right }))
+      .filter((x) => x.right > root.clientWidth + 0.5)
+      .sort((a, b) => b.right - a.right)
+      .slice(0, 5)
+      .map(({ el, right }) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)} "${(el.textContent ?? "").trim().slice(0, 40)}" right=${Math.round(right)}`)
+      .join(" | ");
+    return { overflow: root.scrollWidth - root.clientWidth, wide };
+  });
+}
 
 /** Phone width (360 px): no page may scroll sideways, and every page needs a heading. */
 test.use({ viewport: { width: 360, height: 740 } });
@@ -14,8 +29,8 @@ for (const path of PAGES) {
   test(`${path} fits a 360 px screen`, async ({ page }) => {
     await page.goto(path);
     await expect(page.getByRole("heading").first()).toBeVisible();
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(overflow, "horizontal overflow in px").toBeLessThanOrEqual(0);
+    const { overflow, wide } = await measure(page);
+    expect(overflow, `horizontal overflow in px; widest: ${wide}`).toBeLessThanOrEqual(0);
   });
 }
 
@@ -26,8 +41,8 @@ for (const width of [768, 1440]) {
     test(`/ fits a ${width} px screen`, async ({ page }) => {
       await page.goto("/");
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      expect(overflow, "horizontal overflow in px").toBeLessThanOrEqual(0);
+      const { overflow, wide } = await measure(page);
+      expect(overflow, `horizontal overflow in px; widest: ${wide}`).toBeLessThanOrEqual(0);
     });
   });
 }
