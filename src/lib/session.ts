@@ -21,7 +21,7 @@ export async function currentMember() {
 
 export async function requireMember() {
   const m = await currentMember();
-  if (!m) throw new Response("Not signed in", { status: 401 });
+  if (!m) throw Response.json({ error: "Not signed in" }, { status: 401 });
   return m;
 }
 

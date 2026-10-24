@@ -113,7 +113,7 @@ export function ReceiptUpload({ mandates }: { mandates: MandateChoice[] }) {
 
       <div>
         <p className="label">Receipt photo</p>
-        <input ref={input} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} disabled={busy} />
+        <input ref={input} type="file" accept="image/*" capture="environment" className="sr-only" tabIndex={-1} aria-label="Receipt photo file" onChange={(e) => pick(e.target.files?.[0])} disabled={busy} />
         {photo ? (
           <div className="mt-2 flex flex-wrap items-end gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}

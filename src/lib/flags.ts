@@ -77,6 +77,8 @@ export function integrations(): Integration[] {
 }
 
 export const flags = {
+  /** Off unless set to exactly "true": the scripted model used by CI and the Playwright smoke test. */
+  aiMock: () => process.env.AI_MOCK === "true",
   channel3: () => on("CHANNEL3_ENABLED") && has("CHANNEL3_API_KEY"),
   embeddings: () => on("EMBEDDINGS_ENABLED") && has("GOOGLE_GENERATIVE_AI_API_KEY"),
   kernel: () => on("KERNEL_ENABLED") && has("KERNEL_API_KEY"),

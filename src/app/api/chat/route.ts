@@ -7,6 +7,7 @@ import { systemPrompt } from "@/lib/agent/prompt";
 import { SPENDING_POLICY } from "@/lib/policy";
 import { chunkPolicy } from "@/lib/search/text";
 import { flags } from "@/lib/flags";
+import { mockModel } from "@/lib/agent/mock-model";
 import { currentMember } from "@/lib/session";
 
 export const maxDuration = 60;
@@ -40,12 +41,12 @@ function rateLimitMessage(msg: string): string {
 
 export async function POST(req: Request) {
   const me = await currentMember();
-  if (!me) return new Response("Sign in first", { status: 401 });
+  if (!me) return Response.json({ error: "Not signed in" }, { status: 401 });
   const { id: chatId, messages } = (await req.json()) as { id: string; messages: UIMessage[] };
-  if (!chatId || !Array.isArray(messages)) return new Response("Bad request", { status: 400 });
+  if (!chatId || !Array.isArray(messages)) return Response.json({ error: "Bad request" }, { status: 400 });
 
   const org = await db().query.orgs.findFirst({ where: eq(schema.orgs.id, me.orgId) });
-  if (!org) return new Response("Org not found", { status: 500 });
+  if (!org) return Response.json({ error: "Org not found" }, { status: 500 });
 
   // One purchase request per chat; the chat id is the request id.
   await db()
@@ -53,10 +54,10 @@ export async function POST(req: Request) {
     .values({ id: chatId, orgId: org.id, memberId: me.id, text: textOf(messages.find((m) => m.role === "user")).slice(0, 2000) })
     .onConflictDoNothing();
   const request = await db().query.purchaseRequests.findFirst({ where: eq(schema.purchaseRequests.id, chatId) });
-  if (!request || request.memberId !== me.id) return new Response("Not your conversation", { status: 403 });
+  if (!request || request.memberId !== me.id) return Response.json({ error: "Not your conversation" }, { status: 403 });
 
   const result = streamText({
-    model: google(process.env.AI_MODEL ?? "gemini-3.5-flash"),
+    model: flags.aiMock() ? mockModel() : google(process.env.AI_MODEL ?? "gemini-3.5-flash"),
     // Mandates go in the prompt up front (saves a model call); the policy is searched (searchPolicy) in the same step as the products.
     system: systemPrompt({
       memberName: me.name,

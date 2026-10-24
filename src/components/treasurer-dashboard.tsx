@@ -297,7 +297,7 @@ export function TreasurerDashboard(props: {
       <section aria-labelledby="env-h">
         <h2 id="env-h" className="font-medium">Budget envelopes</h2>
         <div className="mt-3">
-          <AgGridReact theme={gridTheme} rowData={props.envelopes} columnDefs={envelopeCols} domLayout="autoHeight" getRowId={(p) => p.data.mandateId} />
+          <AgGridReact theme={gridTheme} overlayNoRowsTemplate="No budgets yet." rowData={props.envelopes} columnDefs={envelopeCols} domLayout="autoHeight" getRowId={(p) => p.data.mandateId} />
         </div>
       </section>
 
@@ -328,7 +328,7 @@ export function TreasurerDashboard(props: {
           </label>
         </div>
         <div className="mt-3 h-[480px]">
-          <AgGridReact theme={gridTheme} rowData={props.payments} columnDefs={paymentCols} quickFilterText={quick} getRowId={(p) => p.data.id} rowHeight={50} pagination paginationPageSize={20} paginationPageSizeSelector={[20, 50, 100]} />
+          <AgGridReact theme={gridTheme} overlayNoRowsTemplate="No payments yet. Requests from volunteers appear here." rowData={props.payments} columnDefs={paymentCols} quickFilterText={quick} getRowId={(p) => p.data.id} rowHeight={50} pagination paginationPageSize={20} paginationPageSizeSelector={[20, 50, 100]} />
         </div>
         {props.reimbursements.length > queue.length && (
           <details className="mt-6">

@@ -69,6 +69,7 @@ export default async function MandatesPage({ searchParams }: { searchParams: Pro
       )}
 
       <section className="grid gap-4 md:grid-cols-2">
+        {mandates.length === 0 && <p className="card p-4 text-sm text-muted md:col-span-2">No mandates yet. Run <code>npm run db:seed</code> to create the demo team’s budgets.</p>}
         {mandates.map((m, i) => {
           const u = usage[i];
           const ev = events.find((e) => e.id === m.eventId);
@@ -126,6 +127,13 @@ export default async function MandatesPage({ searchParams }: { searchParams: Pro
                 </tr>
               </thead>
               <tbody>
+                {reimbursements.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-muted">
+                      No receipts yet. Volunteers send them from the Reimburse page.
+                    </td>
+                  </tr>
+                )}
                 {reimbursements.map((r) => (
                   <tr key={r.id} className="border-t border-line">
                     <td className="px-4 py-2">{nameOf(r.memberId)}</td>
@@ -160,6 +168,13 @@ export default async function MandatesPage({ searchParams }: { searchParams: Pro
               </tr>
             </thead>
             <tbody>
+              {payments.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-muted">
+                    No payments yet. Ask for something on the Request page and it will show up here.
+                  </td>
+                </tr>
+              )}
               {payments.map((p) => (
                 <tr key={p.id} className="border-t border-line">
                   <td className="px-4 py-2">

@@ -17,7 +17,7 @@ const LINKS = [
 export function NavLinks() {
   const path = usePathname();
   return (
-    <nav className="flex gap-5 text-sm">
+    <nav aria-label="Main" className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
       {LINKS.map((l) => {
         const active = path === l.href || path.startsWith(`${l.href}/`);
         return (
@@ -30,7 +30,7 @@ export function NavLinks() {
             {l.label}
             <span
               aria-hidden
-              className={`absolute inset-x-0 -bottom-[13px] h-[3px] rounded-full bg-ink transition-transform duration-300 ${active ? "scale-x-100" : "scale-x-0"}`}
+              className={`absolute inset-x-0 -bottom-0.5 h-[3px] rounded-full bg-ink transition-transform duration-300 ${active ? "scale-x-100" : "scale-x-0"}`}
             />
           </Link>
         );

@@ -96,7 +96,7 @@ export function ReimbursementActions({ id, status, isApprover, amount, payee, se
             </button>
           ) : (
             <span className="flex flex-wrap items-center gap-2">
-              <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (the volunteer sees this)" maxLength={300} className="rounded-lg border border-line bg-card px-3 py-2 text-sm" />
+              <input aria-label="Reason for rejecting" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (the volunteer sees this)" maxLength={300} className="rounded-lg border border-line bg-card px-3 py-2 text-sm" />
               <button className="btn-ghost text-bad!" onClick={() => act("reject")} disabled={!!busy}>
                 {busy === "reject" ? "Rejecting…" : "Confirm reject"}
               </button>

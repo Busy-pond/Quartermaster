@@ -1,0 +1,10 @@
+{
+  "name": "quartermaster-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript client for the Quartermaster API (sandbox demo)",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "engines": { "node": ">=20" }
+}

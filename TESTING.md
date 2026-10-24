@@ -112,3 +112,16 @@ Set `KERNEL_API_KEY` in `.env.local` and restart. `/status` should show **KERNEL
 | 2 | Open the proposal's trust receipt | Under the option: "Live check: $X", "Verified <time> by KERNEL", and a screenshot |
 | 3 | Ask the same thing again within 6 hours | "(cached, N min when proposed)" |
 | 4 | Remove the key and ask again | No crash. The option shows "unverified" with a reason, and the stored price is still used |
+
+## 10. API, Postman, SDK and the browser smoke test (Task 8)
+Needs a throwaway Neon branch: Neon console → your project → Branches → Create branch from main, then copy its pooled connection string. Prepare it once: in PowerShell, `$env:DATABASE_URL="<branch string>"; npm run db:migrate; npm run db:seed`.
+
+| # | Do this | Expect |
+|---|---|---|
+| 1 | `$env:E2E_DATABASE_URL="<branch string>"; npm run test:e2e` | Builds, then Playwright runs 10 tests green: the hero flow (home → chat → proposal → treasurer pays → receipt showing MOCKCAPTURE) and 8 pages at 360 px plus keyboard focus |
+| 2 | Same variable, `npm run test:api` | Newman: 39 requests, 82 assertions, 0 failed |
+| 3 | Open `/api/openapi.json` in a browser | `"openapi": "3.1.0"` and 21 paths |
+| 4 | Postman → Import → `postman/quartermaster.postman_collection.json` and the environment file, set `baseUrl` to your running app, Run | All green. Then create a public workspace, publish the collection, and paste its id into the commented "Run in Postman" button in README.md |
+| 5 | GitHub → repo → Settings → Secrets and variables → Actions → add `CI_DATABASE_URL` (the branch string), push | The CI job "api-and-browser" runs newman and Playwright green |
+| 6 | apimatic.io → import the OpenAPI URL → generate the TypeScript SDK and the portal | Commit the SDK into `sdk/`; see `sdk/README.md` |
+| 7 | Tab through the home page, `/chat` and `/reimburse` at phone width; use a screen reader on one form | A visible focus ring everywhere; every field announced with its label |

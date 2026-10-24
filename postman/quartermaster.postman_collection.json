@@ -1,0 +1,1625 @@
+{
+  "info": {
+    "name": "Quartermaster API",
+    "description": "Generated from /api/openapi.json by `npm run postman:build`. Run the whole collection (Runner, or `npm run test:api`) from top to bottom: it signs in as the demo volunteer and treasurer and checks that signed-out calls, bad input and the wrong role are refused. It never moves money. Sandbox only.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Public",
+      "item": [
+        {
+          "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for Health check\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.ok).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Health check"
+          }
+        },
+        {
+          "name": "OpenAPI document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for OpenAPI document\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.openapi).to.eql(\"3.1.0\"); });",
+                  "pm.test(\"check 2\", () => { pm.expect(Object.keys(json.paths)).to.include(\"/api/session\"); });",
+                  "pm.test(\"check 3\", () => { pm.expect(Object.keys(json.paths).length).to.be.above(15); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/openapi.json",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "openapi.json"
+              ]
+            },
+            "description": "This document"
+          }
+        },
+        {
+          "name": "PayPal client token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for PayPal client token\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.accessToken).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/paypal/client-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "paypal",
+                "client-token"
+              ]
+            },
+            "description": "Browser client token for the PayPal JS SDK v6"
+          }
+        },
+        {
+          "name": "Webhook without a PayPal signature is rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Webhook without a PayPal signature is rejected\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"invalid signature\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"WH-NEWMAN-1\",\n  \"event_type\": \"PAYMENT.CAPTURE.COMPLETED\",\n  \"resource\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/paypal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "paypal"
+              ]
+            },
+            "description": "PayPal webhook receiver\n\nSignature verified with PayPal, stored by event id before processing (duplicates ignored)."
+          }
+        },
+        {
+          "name": "MCP without a key is refused",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for MCP without a key is refused\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error.message).to.include(\"API key\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/list\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mcp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mcp"
+              ]
+            },
+            "description": "MCP server (streamable HTTP, JSON-RPC)\n\nTools: list_mandates, search_products, check_purchase, request_purchase, search_policy, get_trust_receipt, submit_reimbursement. None can pay."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Signed out is refused",
+      "item": [
+        {
+          "name": "Chat",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Chat\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"x\",\n  \"messages\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
+            },
+            "description": "Chat with the purchasing agent\n\nAI SDK v6 UI message stream. Body: { id, messages } as sent by useChat. The agent can search, dry-run and propose; it cannot pay."
+          }
+        },
+        {
+          "name": "Create PayPal order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Create PayPal order\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/{{unknownId}}/order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "{{unknownId}}",
+                "order"
+              ]
+            },
+            "description": "Create the PayPal order for an approved proposal\n\nApprover only. The mandate is re-checked first; PayPal-Request-Id = order-<id>."
+          }
+        },
+        {
+          "name": "Capture",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Capture\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"X\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/{{unknownId}}/capture",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "{{unknownId}}",
+                "capture"
+              ]
+            },
+            "description": "Capture after the approver pays in the PayPal popup\n\nMandate re-checked again; PayPal-Request-Id = capture-<id>. Idempotent."
+          }
+        },
+        {
+          "name": "Refund",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Refund\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/{{unknownId}}/refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "{{unknownId}}",
+                "refund"
+              ]
+            },
+            "description": "Refund a paid purchase\n\nMandate approver only. PayPal-Request-Id = refund-<id>."
+          }
+        },
+        {
+          "name": "Submit a receipt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Submit a receipt\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reimbursements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reimbursements"
+              ]
+            },
+            "description": "Submit a receipt photo\n\nGemini reads it; duplicate (hash, exact and by meaning) and mandate checks run; the treasurer is notified."
+          }
+        },
+        {
+          "name": "Approve a reimbursement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Approve a reimbursement\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reimbursements/{{unknownId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reimbursements",
+                "{{unknownId}}",
+                "approve"
+              ]
+            },
+            "description": "Approve and send the PayPal payout\n\nApprover only. Mandate re-checked; sender_batch_id = reimb-<id>; safe against double clicks."
+          }
+        },
+        {
+          "name": "Reject a reimbursement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Reject a reimbursement\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reimbursements/{{unknownId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reimbursements",
+                "{{unknownId}}",
+                "reject"
+              ]
+            },
+            "description": "Reject a receipt"
+          }
+        },
+        {
+          "name": "Reimbursement status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Reimbursement status\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reimbursements/{{unknownId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reimbursements",
+                "{{unknownId}}",
+                "status"
+              ]
+            },
+            "description": "Payout status (asks PayPal while in flight)"
+          }
+        },
+        {
+          "name": "Record a subscription",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Record a subscription\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionId\": \"I-ABC123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscriptions"
+              ]
+            },
+            "description": "Record a member's dues subscription\n\nThe server reads the subscription back from PayPal and checks the plan before recording it."
+          }
+        },
+        {
+          "name": "Send an invoice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Send an invoice\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices/{{unknownId}}/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invoices",
+                "{{unknownId}}",
+                "send"
+              ]
+            },
+            "description": "Send a drafted sponsor invoice\n\nTreasurer only: this asks the sponsor for money."
+          }
+        },
+        {
+          "name": "Check an invoice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Check an invoice\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices/{{unknownId}}/sync",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invoices",
+                "{{unknownId}}",
+                "sync"
+              ]
+            },
+            "description": "Check whether a sponsor invoice was paid"
+          }
+        },
+        {
+          "name": "Create an API key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Create an API key\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"newman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "keys"
+              ]
+            },
+            "description": "Create an MCP API key\n\nTreasurer only. The key is returned once; only its hash is stored."
+          }
+        },
+        {
+          "name": "Revoke an API key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Revoke an API key\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not signed in\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/keys/{{unknownId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "keys",
+                "{{unknownId}}"
+              ]
+            },
+            "description": "Revoke an MCP API key"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Demo sign-in",
+      "item": [
+        {
+          "name": "Sign-in without a role is rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Sign-in without a role is rejected\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "session"
+              ]
+            },
+            "description": "Demo sign-in\n\nSigns in as the demo volunteer or treasurer and sets the session cookie. No passwords: this is a sandbox demo."
+          }
+        },
+        {
+          "name": "Sign in as the volunteer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for Sign in as the volunteer\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.member.role).to.eql(\"member\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"member\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "session"
+              ]
+            },
+            "description": "Demo sign-in\n\nSigns in as the demo volunteer or treasurer and sets the session cookie. No passwords: this is a sandbox demo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Signed in as the volunteer",
+      "item": [
+        {
+          "name": "A volunteer cannot create an API key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for A volunteer cannot create an API key\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.include(\"treasurer\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"newman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "keys"
+              ]
+            },
+            "description": "Create an MCP API key\n\nTreasurer only. The key is returned once; only its hash is stored."
+          }
+        },
+        {
+          "name": "Unknown reimbursement status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 for Unknown reimbursement status\", () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not found\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reimbursements/{{unknownId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reimbursements",
+                "{{unknownId}}",
+                "status"
+              ]
+            },
+            "description": "Payout status (asks PayPal while in flight)"
+          }
+        },
+        {
+          "name": "Order for an unknown payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Order for an unknown payment\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/{{unknownId}}/order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "{{unknownId}}",
+                "order"
+              ]
+            },
+            "description": "Create the PayPal order for an approved proposal\n\nApprover only. The mandate is re-checked first; PayPal-Request-Id = order-<id>."
+          }
+        },
+        {
+          "name": "Capture needs an order id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Capture needs an order id\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/{{unknownId}}/capture",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "{{unknownId}}",
+                "capture"
+              ]
+            },
+            "description": "Capture after the approver pays in the PayPal popup\n\nMandate re-checked again; PayPal-Request-Id = capture-<id>. Idempotent."
+          }
+        },
+        {
+          "name": "Refund of an unknown payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Refund of an unknown payment\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"newman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/{{unknownId}}/refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "{{unknownId}}",
+                "refund"
+              ]
+            },
+            "description": "Refund a paid purchase\n\nMandate approver only. PayPal-Request-Id = refund-<id>."
+          }
+        },
+        {
+          "name": "A receipt needs a photo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for A receipt needs a photo\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mandateId\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reimbursements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reimbursements"
+              ]
+            },
+            "description": "Submit a receipt photo\n\nGemini reads it; duplicate (hash, exact and by meaning) and mandate checks run; the treasurer is notified."
+          }
+        },
+        {
+          "name": "Approve an unknown reimbursement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Approve an unknown reimbursement\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reimbursements/{{unknownId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reimbursements",
+                "{{unknownId}}",
+                "approve"
+              ]
+            },
+            "description": "Approve and send the PayPal payout\n\nApprover only. Mandate re-checked; sender_batch_id = reimb-<id>; safe against double clicks."
+          }
+        },
+        {
+          "name": "Reject an unknown reimbursement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Reject an unknown reimbursement\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"newman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reimbursements/{{unknownId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reimbursements",
+                "{{unknownId}}",
+                "reject"
+              ]
+            },
+            "description": "Reject a receipt"
+          }
+        },
+        {
+          "name": "Subscription id must look like PayPal's",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Subscription id must look like PayPal's\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionId\": \"nope\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscriptions"
+              ]
+            },
+            "description": "Record a member's dues subscription\n\nThe server reads the subscription back from PayPal and checks the plan before recording it."
+          }
+        },
+        {
+          "name": "A volunteer cannot send an invoice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for A volunteer cannot send an invoice\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices/{{unknownId}}/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invoices",
+                "{{unknownId}}",
+                "send"
+              ]
+            },
+            "description": "Send a drafted sponsor invoice\n\nTreasurer only: this asks the sponsor for money."
+          }
+        },
+        {
+          "name": "Check an unknown invoice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 for Check an unknown invoice\", () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Not found\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices/{{unknownId}}/sync",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "invoices",
+                "{{unknownId}}",
+                "sync"
+              ]
+            },
+            "description": "Check whether a sponsor invoice was paid"
+          }
+        },
+        {
+          "name": "Revoke a key as the volunteer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Revoke a key as the volunteer\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.include(\"treasurer\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/keys/{{unknownId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "keys",
+                "{{unknownId}}"
+              ]
+            },
+            "description": "Revoke an MCP API key"
+          }
+        },
+        {
+          "name": "Chat needs messages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 for Chat needs messages\", () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.eql(\"Bad request\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
+            },
+            "description": "Chat with the purchasing agent\n\nAI SDK v6 UI message stream. Body: { id, messages } as sent by useChat. The agent can search, dry-run and propose; it cannot pay."
+          }
+        },
+        {
+          "name": "Sign out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for Sign out\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.ok).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "session"
+              ]
+            },
+            "description": "Sign out"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Signed in as the treasurer",
+      "item": [
+        {
+          "name": "Sign in as the treasurer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for Sign in as the treasurer\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.member.role).to.eql(\"treasurer\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"treasurer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "session"
+              ]
+            },
+            "description": "Demo sign-in\n\nSigns in as the demo volunteer or treasurer and sets the session cookie. No passwords: this is a sandbox demo."
+          }
+        },
+        {
+          "name": "Create an API key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for Create an API key\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.key).to.match(/^qm_live_/); });",
+                  "pm.test(\"check 2\", () => { pm.collectionVariables.set(\"apiKey\", json.key); });",
+                  "pm.test(\"check 3\", () => { pm.collectionVariables.set(\"keyId\", json.id); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"newman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "keys"
+              ]
+            },
+            "description": "Create an MCP API key\n\nTreasurer only. The key is returned once; only its hash is stored."
+          }
+        },
+        {
+          "name": "MCP lists seven tools with the key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for MCP lists seven tools with the key\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.result.tools.length).to.eql(7); });",
+                  "pm.test(\"check 2\", () => { pm.expect(json.result.tools.map(t => t.name)).to.not.include(\"pay\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/list\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mcp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mcp"
+              ]
+            },
+            "description": "MCP server (streamable HTTP, JSON-RPC)\n\nTools: list_mandates, search_products, check_purchase, request_purchase, search_policy, get_trust_receipt, submit_reimbursement. None can pay."
+          }
+        },
+        {
+          "name": "Revoke the key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 for Revoke the key\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.ok).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/keys/{{keyId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "keys",
+                "{{keyId}}"
+              ]
+            },
+            "description": "Revoke an MCP API key"
+          }
+        },
+        {
+          "name": "A revoked key is refused",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for A revoked key is refused\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/list\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/mcp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mcp"
+              ]
+            },
+            "description": "MCP server (streamable HTTP, JSON-RPC)\n\nTools: list_mandates, search_products, check_purchase, request_purchase, search_policy, get_trust_receipt, submit_reimbursement. None can pay."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "unknownId",
+      "value": "00000000-0000-4000-8000-000000000000"
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    },
+    {
+      "key": "keyId",
+      "value": ""
+    }
+  ]
+}

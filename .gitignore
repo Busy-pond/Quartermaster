@@ -14,3 +14,6 @@ NOTES.md
 DECISIONS.md
 
 .next-check/
+.next-e2e/
+test-results/
+playwright-report/

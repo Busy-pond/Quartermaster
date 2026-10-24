@@ -22,10 +22,15 @@
     "db:vector": "tsx scripts/db-vector.ts",
     "db:index": "tsx scripts/index-search.ts",
     "db:migrate": "tsx scripts/db-migrate.ts",
-    "setup:dues": "tsx scripts/setup-dues.ts"
+    "setup:dues": "tsx scripts/setup-dues.ts",
+    "postman:build": "tsx scripts/make-postman.ts",
+    "mock:paypal": "node scripts/mock-paypal.mjs",
+    "test:api": "node scripts/api-check.mjs",
+    "test:e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "3.0.134",
+    "@ai-sdk/provider": "3.0.19",
     "@ai-sdk/react": "3.0.311",
     "@modelcontextprotocol/sdk": "1.32.1",
     "@neondatabase/serverless": "1.0.1",
@@ -43,6 +48,7 @@
     "zod-to-json-schema": "3.25.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "4.1.10",
     "@types/node": "22.15.32",
     "@types/react": "^19.2.0",

@@ -91,6 +91,42 @@ npx -y @modelcontextprotocol/inspector@2.10.1 --cli http://localhost:3000/api/mc
   --header "Authorization: Bearer qm_live_..." --method tools/list
 ```
 
+## API, Postman and SDK
+
+Every public route is described in an OpenAPI 3.1 document served at **`/api/openapi.json`**. Request bodies in it come from the same zod schemas the routes validate with, and a test fails if a route is missing, so it can't drift.
+
+**Postman.** `postman/` holds a collection (39 requests, 82 assertions) and a sandbox environment, both generated from the OpenAPI document by `npm run postman:build`. The collection signs in as the demo volunteer and treasurer and checks that signed-out calls, bad input and the wrong role are refused. It never moves money.
+
+<!-- TODO after publishing the collection to your public Postman workspace: replace COLLECTION_ID and remove this comment.
+[![Run in Postman](https://run.pstmn.io/button.svg)](https://app.getpostman.com/run-collection/COLLECTION_ID)
+-->
+- Import `postman/quartermaster.postman_collection.json` and `postman/quartermaster-sandbox.postman_environment.json` into Postman, pick the **Quartermaster sandbox** environment, set `baseUrl`, and run the collection. Or import `https://<your-app>/api/openapi.json` to get one request per route.
+- From the command line, against a production build with PayPal mocked: `npm run test:e2e -- --build-only`, then `npm run test:api` (see [Tests](#tests)).
+
+**TypeScript SDK.** [`sdk/`](sdk/) is a dependency-free client with one method per route and a README example:
+
+```ts
+import { QuartermasterClient } from "./sdk/src/index";
+
+const qm = new QuartermasterClient({ baseUrl: "http://localhost:3000" });
+await qm.signIn("treasurer");
+const { key } = await qm.createApiKey("my agent");
+const tools = await qm.mcp(key, "tools/list"); // the same seven tools the MCP server offers
+```
+
+I used the **APIMatic PayPal context plugin** while writing the PayPal calls (`src/lib/paypal/client.ts`). The SDK in `sdk/` is written by hand from the same OpenAPI document, so it works today; to produce APIMatic's own SDK and docs portal, import `/api/openapi.json` at [apimatic.io](https://www.apimatic.io) and follow [sdk/README.md](sdk/README.md).
+
+## Tests
+
+| Command | What it runs |
+|---|---|
+| `npm test` | 128 unit tests: mandate engine, receipts, search, approvals, OpenAPI coverage, SDK coverage |
+| `npm run typecheck`, `npm run build` | Types and the production build |
+| `npm run test:api` | The Postman collection with newman, against a built app and a mock PayPal (`scripts/mock-paypal.mjs`) |
+| `npm run test:e2e` | Playwright: home, volunteer chat, proposal, treasurer approves and pays, trust receipt; plus every page at 360 px width |
+
+`test:api` and `test:e2e` build the app with `AI_MOCK=true` (a scripted stand-in for Gemini, listed on `/status` as a fallback) and `PAYPAL_API_BASE` pointing at the mock, so they need no PayPal or Gemini keys. They create and pay a mock purchase, so give them their own Neon branch: set `E2E_DATABASE_URL` (or `E2E_USE_DEV_DB=1` to accept a mock payment in your dev database). CI runs them when the repository secret `CI_DATABASE_URL` is set.
+
 ## Deploy
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy) — uses `render.yaml` (one web service). Set the environment variables, then run `npm run setup` once locally against the same Neon database.
@@ -106,7 +142,8 @@ npx -y @modelcontextprotocol/inspector@2.10.1 --cli http://localhost:3000/api/mc
 - [x] Treasurer view of mandates, budgets and pending approvals; `/status` page for integrations
 - [x] Snap-to-reimburse: Gemini reads the receipt photo, duplicate and receipt checks, mandate engine, treasurer approval, PayPal Payouts, confirmed by webhook or polling
 - [ ] Policy search (pgvector → Elastic), KERNEL live price verification, Zapier approvals
-- [ ] AG Studio treasurer dashboard, MCP server, Postman collection, APIMatic SDK
+- [x] MCP server, OpenAPI 3.1, Postman collection with newman, TypeScript SDK, Playwright smoke test
+- [ ] AG Studio treasurer dashboard, Elastic, Bryntum
 
 ## Tech and tools
 
@@ -117,6 +154,9 @@ npx -y @modelcontextprotocol/inspector@2.10.1 --cli http://localhost:3000/api/mc
 | Channel3 | Product search across retailers |
 | Neon Postgres + Drizzle ORM | Data, audit trail, cache |
 | Next.js, Tailwind | App and API |
+| Postman, newman | Collection generated from the OpenAPI document, run in CI |
+| APIMatic | PayPal context plugin used while coding; SDK and docs portal from the OpenAPI document |
+| Playwright | Browser smoke test with PayPal mocked |
 | Render | Hosting |
 
 ## License

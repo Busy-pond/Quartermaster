@@ -16,7 +16,7 @@
   --color-brand-soft: #e2f0eb;
   --color-ok: #1f7a4d;
   --color-ok-soft: #e3f3ea;
-  --color-warn: #b7791f;
+  --color-warn: #8a5a00; /* 5:1 on every surface; the older #b7791f was 3.3:1 */
   --color-warn-soft: #fbf1dd;
   --color-bad: #c4302b; /* stamp red */
   --color-bad-soft: #fce7e5;

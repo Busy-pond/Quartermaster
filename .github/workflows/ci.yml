@@ -18,3 +18,64 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run typecheck
+
+  # Newman (the Postman collection) and the Playwright smoke test, against a mocked PayPal and a scripted AI model.
+  # They write to a database, so they need a throwaway Neon branch: add its pooled connection string as the
+  # repository secret CI_DATABASE_URL. Without the secret this job is skipped (and says so).
+  api-and-browser:
+    runs-on: ubuntu-latest
+    env:
+      CI_DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+    steps:
+      - name: Explain a skip
+        if: ${{ env.CI_DATABASE_URL == '' }}
+        run: echo "::warning::CI_DATABASE_URL is not set, so newman and Playwright did not run."
+      - uses: actions/checkout@v4
+        if: ${{ env.CI_DATABASE_URL != '' }}
+      - uses: actions/setup-node@v4
+        if: ${{ env.CI_DATABASE_URL != '' }}
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+        if: ${{ env.CI_DATABASE_URL != '' }}
+      - name: Prepare the test database (idempotent; the seed rebuilds the demo team)
+        if: ${{ env.CI_DATABASE_URL != '' }}
+        env:
+          DATABASE_URL: ${{ env.CI_DATABASE_URL }}
+          EMBEDDINGS_ENABLED: "false"
+        run: |
+          npm run db:vector
+          npm run db:push
+          npm run db:migrate
+          npm run db:seed
+      - name: Build against the mocks
+        if: ${{ env.CI_DATABASE_URL != '' }}
+        env:
+          E2E_DATABASE_URL: ${{ env.CI_DATABASE_URL }}
+        run: node scripts/e2e.mjs --build-only
+      - name: Postman collection with newman
+        if: ${{ env.CI_DATABASE_URL != '' }}
+        env:
+          E2E_DATABASE_URL: ${{ env.CI_DATABASE_URL }}
+        run: npm run test:api
+      - name: Re-seed so the smoke test starts from the demo budgets
+        if: ${{ env.CI_DATABASE_URL != '' }}
+        env:
+          DATABASE_URL: ${{ env.CI_DATABASE_URL }}
+          EMBEDDINGS_ENABLED: "false"
+        run: npm run db:seed
+      - run: npx playwright install --with-deps chromium
+        if: ${{ env.CI_DATABASE_URL != '' }}
+      - name: Playwright smoke test
+        if: ${{ env.CI_DATABASE_URL != '' }}
+        env:
+          E2E_DATABASE_URL: ${{ env.CI_DATABASE_URL }}
+        run: node scripts/e2e.mjs --skip-build
+      - uses: actions/upload-artifact@v4
+        if: ${{ failure() && env.CI_DATABASE_URL != '' }}
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/

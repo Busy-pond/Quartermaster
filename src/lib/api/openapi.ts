@@ -26,7 +26,7 @@ const OPS: Op[] = [
   { method: "get", path: "/api/openapi.json", tag: "System", summary: "This document", auth: "none", ok: { status: 200, description: "OpenAPI 3.1" } },
   { method: "post", path: "/api/session", tag: "Session", summary: "Demo sign-in", description: "Signs in as the demo volunteer or treasurer and sets the session cookie. No passwords: this is a sandbox demo.", auth: "none", body: SessionBody, ok: { status: 200, description: "Signed in", example: { member: { id: "…", name: "Priya Nair", role: "treasurer" } } }, errors: [400, 503] },
   { method: "delete", path: "/api/session", tag: "Session", summary: "Sign out", auth: "none", ok: { status: 200, description: "Signed out", example: { ok: true } } },
-  { method: "post", path: "/api/chat", tag: "Agent", summary: "Chat with the purchasing agent", description: "AI SDK v6 UI message stream. Body: { id, messages } as sent by useChat. The agent can search, dry-run and propose; it cannot pay.", auth: "session", ok: { status: 200, description: "Server-sent UI message stream", contentType: "text/event-stream" }, errors: [401] },
+  { method: "post", path: "/api/chat", tag: "Agent", summary: "Chat with the purchasing agent", description: "AI SDK v6 UI message stream. Body: { id, messages } as sent by useChat. The agent can search, dry-run and propose; it cannot pay.", auth: "session", ok: { status: 200, description: "Server-sent UI message stream", contentType: "text/event-stream" }, errors: [400, 401, 403] },
   { method: "get", path: "/api/paypal/client-token", tag: "Payments", summary: "Browser client token for the PayPal JS SDK v6", auth: "none", ok: { status: 200, description: "Short-lived client token", example: { accessToken: "…" } }, errors: [502] },
   { method: "post", path: "/api/payments/{id}/order", tag: "Payments", summary: "Create the PayPal order for an approved proposal", description: "Approver only. The mandate is re-checked first; PayPal-Request-Id = order-<id>.", auth: "session", ok: { status: 200, description: "PayPal order", example: { id: "5O190127TN364715T", status: "CREATED" } }, errors: [400, 401, 502] },
   { method: "post", path: "/api/payments/{id}/capture", tag: "Payments", summary: "Capture after the approver pays in the PayPal popup", description: "Mandate re-checked again; PayPal-Request-Id = capture-<id>. Idempotent.", auth: "session", body: CaptureBody, ok: { status: 200, description: "Capture result", example: { status: "captured" } }, errors: [400, 401, 502] },
@@ -44,9 +44,16 @@ const OPS: Op[] = [
   { method: "post", path: "/api/webhooks/paypal", tag: "Webhooks", summary: "PayPal webhook receiver", description: "Signature verified with PayPal, stored by event id before processing (duplicates ignored).", auth: "paypal", ok: { status: 200, description: "Accepted", example: { ok: true } }, errors: [400] },
 ];
 
+/** OpenAPI 3.1 schemas are plain JSON Schema, so no "nullable" and no $schema key. */
+function bodySchema(body: ZodTypeAny) {
+  const { $schema: _unused, ...schema } = zodToJsonSchema(body, { target: "jsonSchema7", $refStrategy: "none" }) as Record<string, unknown>;
+  return schema;
+}
+
 const ERRORS: Record<number, string> = {
   400: "Invalid input, or the action isn't allowed in the current state (e.g. blocked by a mandate rule)",
   401: "Not signed in, or missing/invalid API key",
+  403: "Not allowed for this member",
   404: "Not found",
   502: "PayPal returned an error (paypalDebugId included)",
   503: "The database is unreachable",
@@ -77,7 +84,7 @@ export function openApiDocument(serverUrl: string) {
       ...(op.description ? { description: op.description } : {}),
       operationId: `${op.method}${op.path.replace(/[{}]/g, "").replace(/[^a-zA-Z0-9]+(.)?/g, (_, c: string | undefined) => (c ? c.toUpperCase() : ""))}`,
       ...(params.length ? { parameters: params } : {}),
-      ...(op.body ? { requestBody: { required: true, content: { "application/json": { schema: zodToJsonSchema(op.body, { target: "openApi3", $refStrategy: "none" }) } } } } : {}),
+      ...(op.body ? { requestBody: { required: true, content: { "application/json": { schema: bodySchema(op.body) } } } } : {}),
       security: SECURITY[op.auth],
       responses,
     };
@@ -100,7 +107,7 @@ export function openApiDocument(serverUrl: string) {
         apiKey: { type: "http", scheme: "bearer", description: "qm_live_… key created on /settings (MCP only)" },
         paypalSignature: { type: "apiKey", in: "header", name: "paypal-transmission-sig", description: "Verified with PayPal's verify-webhook-signature API" },
       },
-      schemas: { Error: { type: "object", properties: { error: { type: "string" }, paypalDebugId: { type: "string", nullable: true } }, required: ["error"] } },
+      schemas: { Error: { type: "object", properties: { error: { type: "string" }, paypalDebugId: { type: ["string", "null"] } }, required: ["error"] } },
     },
   };
 }

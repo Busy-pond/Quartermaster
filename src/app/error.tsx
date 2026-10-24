@@ -4,7 +4,7 @@
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const db = /Failed query|NeonDbError|DATABASE_URL|fetch failed/i.test(error.message);
   return (
-    <div className="card mx-auto max-w-xl p-6">
+    <div className="card mx-auto max-w-xl p-6" role="alert">
       <h1 className="text-lg font-semibold">{db ? "Can't reach the database" : "Something went wrong"}</h1>
       <p className="mt-2 text-sm text-muted">
         {db

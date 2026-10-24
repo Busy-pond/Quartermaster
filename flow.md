@@ -2,7 +2,7 @@
 
 Updated every time something is built or changed. The reasons behind each choice are in [decision.md](decision.md).
 
-**Last updated:** Oct 23, 2026 · **Build plan position:** Days 1–6 and 8 verified; app moved to the repo root (D52), manual checklist in TESTING.md · **Next:** see “What to do next” at the bottom
+**Last updated:** Oct 24, 2026 · **Build plan position:** Days 1–6 and 8 verified; Days 15–16 (Task 8) built, newman verified, Playwright smoke test written but not run (needs a Neon branch); manual checklist in TESTING.md · **Next:** see “What to do next” at the bottom
 
 ### Status key
 | Mark | Meaning |
@@ -36,13 +36,22 @@ Honest summary: the whole money path is proven with real sandbox money. Agent �
 | `TESTING.md`: manual checklist for the 9 features no person has used yet, plus the demo reset | ✅ written · 🟡 checks not run yet: that's your list |
 | Found along the way | After `npm run db:seed` the Beach mandate has $438 left, so the README's "4 folding tables → blocked under M7" only holds on today's test data. TESTING.md uses 12 tables. Fix the README before recording · `/treasurer` has no role guard (volunteers get a read-only view) |
 
-### Day 15 (Oct 23): started, paused
+### Days 15–16 (Oct 24): API docs, Postman, SDK, tests and polish (Task 8)
 | Step | Result |
 |---|---|
-| Task 7 (MCP server) | ✅ done and committed (see below) |
-| Request schemas shared | ✅ every route's body schema moved to `src/lib/api/schemas.ts`; the routes validate with them |
-| OpenAPI 3.1 | 🟡 not finished: `src/lib/api/openapi.ts` builds the document from those schemas and `/api/openapi.json` serves it, but its output hasn't been checked yet |
-| Postman, newman in CI, APIMatic SDK, Playwright, polish pass | ⬜ not started |
+| OpenAPI 3.1 at `/api/openapi.json` | ✅ 21 paths, every `route.ts` covered (test), bodies from the shared zod schemas, 3.1 dialect (D53) |
+| Unit tests | ✅ 128/128 (new: OpenAPI coverage 5, SDK coverage 2, scripted model 3) |
+| Postman collection + environment (`npm run postman:build`) | ✅ 39 requests, 82 assertions |
+| Newman against a **production build** with a mock PayPal (`npm run test:api`) | ✅ 82/82 passed (Oct 24) |
+| Routes' 401 now JSON | ✅ chat page reads it |
+| Mock PayPal (`scripts/mock-paypal.mjs`) and scripted agent (`AI_MOCK=true`, shown on /status) | ✅ both exercised through newman · 🟡 the scripted agent's chat path is only exercised by the smoke test |
+| Playwright: 8 pages at 360 px + keyboard focus | ✅ 9/9 against `next dev` (read-only, dev DB) after the nav fix |
+| Playwright hero-flow smoke test (home → chat → proposal → treasurer pays → receipt) | 🟡 written, **not run**: it pays a mock purchase, so it needs its own Neon branch (TESTING.md 10.1) |
+| CI job `api-and-browser` (build, newman, re-seed, Playwright) | 🟡 written; runs once the secret `CI_DATABASE_URL` exists |
+| TypeScript SDK in `sdk/` with README example | ✅ hand-written, covered by a test · 🟡 APIMatic's own SDK and portal need your account (D55) |
+| README: Postman, SDK and Tests sections; tools table | ✅ · 🟡 "Run in Postman" button is a commented placeholder until you publish the collection |
+| Polish pass: nav wrap, contrast, labels, loading / empty / 404 states (D56) | ✅ measured where possible · 🟡 no screen-reader pass, no manual look at every page at 360 px |
+| Side effect | The newman run on your dev database created and revoked one API key and its "External agent (newman)" member (twice). Harmless; `npm run db:seed` clears them |
 
 ### Day 14 (Oct 23): Quartermaster as an MCP server
 | Step | Result |
@@ -313,8 +322,8 @@ Green = done and verified · amber = written, not run · dashed = not started
 | 12 | Oct 27 | AG Grid Community dashboard | ✅ done Oct 23 |
 | 13 | Oct 28 | Subscriptions, invoicing, refund button | ✅ built Oct 23 · 🟡 needs a sandbox subscription and a paid invoice |
 | 14 | Oct 29 | MCP server | ✅ done Oct 23 |
-| 15 | Oct 30 | OpenAPI, Postman, APIMatic SDK | 🟡 started Oct 23: schemas shared, OpenAPI not finished |
-| 16 | Oct 31 | Polish, accessibility, Playwright | ⬜ |
+| 15 | Oct 30 | OpenAPI, Postman, APIMatic SDK | ✅ OpenAPI + Postman + newman verified Oct 24 · 🟡 APIMatic SDK/portal need your account |
+| 16 | Oct 31 | Polish, accessibility, Playwright | 🟡 built Oct 24; smoke test and CI need a Neon branch |
 | 17–18 | Nov 1–2 | AG Studio and its agent | ⬜ |
 | 19 | Nov 3 | Elastic | ⬜ |
 | 20 | Nov 4 | Bryntum (optional), go-live hardening | ⬜ |
@@ -333,8 +342,8 @@ We're roughly on schedule: Days 1–6 are verified, with Day 7 due on Oct 22. Da
 | KERNEL | ⬜ | Day 10 |
 | Zapier MCP | ⬜ | Day 11 |
 | AG Grid / AG Studio | ⬜ | Days 12, 17–18 |
-| Postman | ⬜ | Day 15 |
-| APIMatic | ⬜ | Day 15 (and the PayPal context plugin while coding) |
+| Postman | 🟡 collection + newman in CI written; publish the public workspace | Day 15 |
+| APIMatic | 🟡 OpenAPI ready to import; SDK/portal not generated yet | Day 15 (and the PayPal context plugin while coding) |
 | Elastic | ⬜ | Day 19 |
 | Bryntum | ➖ | Day 20, optional |
 
@@ -370,6 +379,12 @@ We're roughly on schedule: Days 1–6 are verified, with Day 7 due on Oct 22. Da
 ---
 
 ## What to do next
+
+**You (Task 8, from Oct 24):** see [TESTING.md](TESTING.md) section 10.
+1. Create a Neon branch for tests, run `db:migrate` and `db:seed` on it, then `npm run test:e2e` with `E2E_DATABASE_URL` set. Send me the result.
+2. Add the repository secret `CI_DATABASE_URL`, then push so CI runs newman and Playwright.
+3. Import the collection into Postman, make the public workspace, and put the collection id into the README button.
+4. Generate the SDK and portal at apimatic.io from `/api/openapi.json`; commit the SDK into `sdk/`. Add APIMatic (PayPal context plugin) to the Devpost tools list.
 
 **You (from Oct 23, repo root):**
 1. Work through [TESTING.md](TESTING.md) top to bottom, and send screenshots of anything marked ✕.

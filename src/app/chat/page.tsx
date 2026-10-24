@@ -47,6 +47,18 @@ type CheckResult = { totalDollars?: number; outcome?: string; withinRequesterBud
 /** AI SDK v6 tool parts are typed "tool-<name>"; this reads them without depending on generated types. */
 type ToolPart = { type: string; state: string; output?: unknown; errorText?: string };
 
+/** Route errors arrive as {"error": "..."}; stream errors arrive as plain text. */
+function errorMessage(raw: string | undefined): string {
+  if (!raw) return "Something went wrong.";
+  try {
+    const parsed = JSON.parse(raw) as { error?: string };
+    if (parsed.error) return parsed.error;
+  } catch {
+    /* plain text */
+  }
+  return raw;
+}
+
 const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 const cents = (n: number) => Math.round(n * 100);
 
@@ -284,7 +296,7 @@ export default function ChatPage() {
         {status === "submitted" && <TrailStep label="Thinking" state="running" />}
         {error && (
           <div className="card enter-up border-bad/30 bg-bad-soft p-3 text-sm text-bad">
-            {error.message || "Something went wrong."}{" "}
+            {errorMessage(error.message)}{" "}
             <button className="font-medium underline" onClick={() => regenerate()}>
               Retry
             </button>
