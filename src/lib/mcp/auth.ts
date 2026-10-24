@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { generateKey, hashKey, parseBearer } from "./keys";
+import { Forbidden } from "@/lib/auth/roles";
 
 type MemberRow = typeof schema.members.$inferSelect;
 
@@ -16,7 +17,7 @@ export async function keyFromHeader(header: string | null) {
 
 /** Treasurer creates a key. Each key gets its own "External agent" member, so receipts say who asked. */
 export async function createApiKey(treasurer: MemberRow, name: string) {
-  if (treasurer.role !== "treasurer") throw new Error("Only the treasurer can create API keys");
+  if (treasurer.role !== "treasurer") throw new Forbidden("Only the treasurer can create API keys");
   const label = name.trim().slice(0, 60) || "External agent";
   const [agent] = await db()
     .insert(schema.members)
@@ -28,6 +29,6 @@ export async function createApiKey(treasurer: MemberRow, name: string) {
 }
 
 export async function revokeApiKey(treasurer: MemberRow, id: string) {
-  if (treasurer.role !== "treasurer") throw new Error("Only the treasurer can revoke API keys");
+  if (treasurer.role !== "treasurer") throw new Forbidden("Only the treasurer can revoke API keys");
   await db().update(schema.apiKeys).set({ revokedAt: new Date() }).where(and(eq(schema.apiKeys.id, id), eq(schema.apiKeys.orgId, treasurer.orgId)));
 }

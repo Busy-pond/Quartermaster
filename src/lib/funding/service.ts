@@ -14,6 +14,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { money } from "@/lib/format";
 import { audit, getMandate, getPayment } from "@/lib/purchases";
+import { assertApprover } from "@/lib/auth/roles";
 import {
   createCatalogProduct,
   createInvoiceDraft,
@@ -181,7 +182,7 @@ export async function draftSponsorInvoice(args: { orgId: string; createdBy: stri
 
 async function requireTreasurer(orgId: string, mandateId: string, member: MemberRow) {
   const m = await getMandate(mandateId);
-  if (!m || m.orgId !== orgId || !m.approverIds.includes(member.id)) throw new Error("Only the treasurer (the budget's approver) can do this");
+  assertApprover(m && m.orgId === orgId ? m : null, member);
 }
 
 /** The treasurer's click: this is what actually asks the sponsor for money. */

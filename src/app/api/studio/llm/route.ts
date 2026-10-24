@@ -4,7 +4,7 @@ import { generateText, jsonSchema, Output } from "ai";
 import { NextResponse } from "next/server";
 import type { AgLlmResponse } from "ag-studio";
 import { handle } from "@/lib/http";
-import { requireMember } from "@/lib/session";
+import { requireTreasurer } from "@/lib/session";
 import { flags } from "@/lib/flags";
 import { StudioTurnBody } from "@/lib/api/schemas";
 import { friendlyModelError } from "@/lib/agent/model-errors";
@@ -19,7 +19,7 @@ export const maxDuration = 60;
  * can read nothing and change nothing by itself. It never touches money.
  */
 export const POST = handle(async (req: Request) => {
-  await requireMember();
+  await requireTreasurer(); // the assistant only exists in the treasurer's dashboard, and each turn spends Gemini quota
   const body = StudioTurnBody.parse(await req.json()) as unknown as AgLlmRequest;
   const id = `resp_${randomUUID()}`;
   const base = { id, createdAt: Date.now() };

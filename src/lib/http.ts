@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PayPalError } from "@/lib/paypal/client";
+import { Forbidden } from "@/lib/auth/roles";
 
 /** Turns a database failure into one line a person can act on. */
 export function friendlyDbError(e: unknown): string {
@@ -23,6 +24,7 @@ export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response
       return await fn(...args);
     } catch (e) {
       if (e instanceof Response) return e;
+      if (e instanceof Forbidden) return NextResponse.json({ error: e.message }, { status: 403 });
       if (e instanceof PayPalError) {
         console.error("PayPal error", e.status, e.debugId, JSON.stringify(e.details));
         return NextResponse.json({ error: e.message, paypalDebugId: e.debugId }, { status: 502 });

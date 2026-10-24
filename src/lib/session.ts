@@ -5,6 +5,7 @@
 import { cookies } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { assertTreasurer } from "@/lib/auth/roles";
 
 export const SESSION_COOKIE = "qm_member";
 export const DEMO_ORG_SLUG = "riverside";
@@ -22,6 +23,13 @@ export async function currentMember() {
 export async function requireMember() {
   const m = await currentMember();
   if (!m) throw Response.json({ error: "Not signed in" }, { status: 401 });
+  return m;
+}
+
+/** Signed in as the treasurer, or a 401 / 403. */
+export async function requireTreasurer() {
+  const m = await requireMember();
+  assertTreasurer(m);
   return m;
 }
 

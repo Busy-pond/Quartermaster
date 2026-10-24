@@ -12,6 +12,7 @@ import { db, schema } from "@/lib/db";
 import type { ReimbursementStatus } from "@/lib/db/schema";
 import { evaluate, type Decision } from "@/lib/mandates/engine";
 import { audit, engineMandate, getMandate, loadLedger } from "@/lib/purchases";
+import { assertApprover } from "@/lib/auth/roles";
 import { createPayout, getPayout } from "@/lib/paypal/client";
 import { money } from "@/lib/format";
 import { extractReceipt } from "./extract";
@@ -166,16 +167,15 @@ async function recheck(r: ReimbursementRow): Promise<Decision> {
   );
 }
 
-async function requireApprover(r: ReimbursementRow, approverId: string) {
-  const m = r.mandateId ? await getMandate(r.mandateId) : undefined;
-  if (!m?.approverIds.includes(approverId)) throw new Error("Only the mandate's approver (the treasurer) can do this");
+async function requireApprover(r: ReimbursementRow, approver: MemberRow) {
+  assertApprover(r.mandateId ? await getMandate(r.mandateId) : undefined, approver);
 }
 
 /** Treasurer approves: re-check the mandate, then send the PayPal Payout. Safe against double clicks. */
 export async function approveReimbursement(id: string, approver: MemberRow) {
   const r = await getReimbursement(id);
   if (!r) throw new Error("Reimbursement not found");
-  await requireApprover(r, approver.id);
+  await requireApprover(r, approver);
   if (r.status === "approved" || r.status === "paid") return r;
   if (r.status !== "needs_approval" && r.status !== "failed") throw new Error(`This reimbursement is ${r.status}`);
 
@@ -228,7 +228,7 @@ export async function approveReimbursement(id: string, approver: MemberRow) {
 export async function rejectReimbursement(id: string, approver: MemberRow, reason: string) {
   const r = await getReimbursement(id);
   if (!r) throw new Error("Reimbursement not found");
-  await requireApprover(r, approver.id);
+  await requireApprover(r, approver);
   if (r.status !== "needs_approval" && r.status !== "failed") throw new Error(`This reimbursement is ${r.status}`);
   const why = reason.trim().slice(0, 300) || "Rejected by the treasurer";
   const [updated] = await db()

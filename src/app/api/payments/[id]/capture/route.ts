@@ -10,6 +10,6 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
   const me = await requireMember();
   const { id } = await ctx.params;
   const { orderId } = Body.parse(await req.json());
-  const payment = await capturePayment(id, orderId, me.id);
+  const payment = await capturePayment(id, orderId, me);
   return NextResponse.json({ status: payment.status, captureId: payment.paypalCaptureId });
 });

@@ -14,6 +14,7 @@ import { captureIdOf, captureOrder, createOrder } from "@/lib/paypal/client";
 import { indexPurchase } from "@/lib/integrations/search";
 import { mirrorEvents } from "@/lib/traces/sink";
 import { TOOL_EVENT } from "@/lib/traces/trace";
+import { assertApprover } from "@/lib/auth/roles";
 
 type MandateRow = typeof schema.mandates.$inferSelect;
 type PaymentRow = typeof schema.payments.$inferSelect;
@@ -203,12 +204,11 @@ async function payeeFor(orgId: string, vendor: string): Promise<string | null> {
 }
 
 /** Called by the approval page's PayPal button (createOrder). */
-export async function createOrderForPayment(paymentId: string, approverId: string) {
+export async function createOrderForPayment(paymentId: string, approver: { id: string; orgId: string }) {
   const p = await getPayment(paymentId);
   if (!p) throw new Error("Payment not found");
+  assertApprover(await getMandate(p.mandateId), approver);
   if (!["needs_approval", "approved"].includes(p.status)) throw new Error(`Payment is ${p.status}`);
-  const m = await getMandate(p.mandateId);
-  if (!m?.approverIds.includes(approverId)) throw new Error("You are not an approver on this mandate");
 
   const decision = await recheck(p);
   if (decision.outcome === "deny") {
@@ -231,9 +231,12 @@ export async function createOrderForPayment(paymentId: string, approverId: strin
 }
 
 /** Called after the approver approves in the PayPal popup (onApprove). */
-export async function capturePayment(paymentId: string, orderId: string, approverId: string) {
+export async function capturePayment(paymentId: string, orderId: string, approver: { id: string; orgId: string }) {
   const p = await getPayment(paymentId);
   if (!p) throw new Error("Payment not found");
+  // Only the mandate's approver may capture, the same rule as creating the order.
+  assertApprover(await getMandate(p.mandateId), approver);
+  const approverId = approver.id;
   if (p.paypalOrderId !== orderId) throw new Error("Order does not belong to this payment");
   if (p.status === "captured") return p; // idempotent
 

@@ -6,6 +6,6 @@ import { handle } from "@/lib/http";
 export const POST = handle(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const me = await requireMember();
   const { id } = await ctx.params;
-  const order = await createOrderForPayment(id, me.id);
+  const order = await createOrderForPayment(id, me);
   return NextResponse.json({ id: order.id });
 });
