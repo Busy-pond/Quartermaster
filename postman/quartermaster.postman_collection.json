@@ -73,6 +73,43 @@
           }
         },
         {
+          "name": "Demo reset with a wrong admin secret is rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 for Demo reset with a wrong admin secret is rejected\", () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test(\"check 1\", () => { pm.expect(json.error).to.match(/admin secret/); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer wrong-secret-wrong-secret-wrong"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reset-demo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reset-demo"
+              ]
+            },
+            "description": "Reset the demo org\n\nWipes and re-seeds the demo org (as npm run db:seed), then sets up the dues plan in the PayPal sandbox (as npm run setup:dues). Bearer APP_SECRET; 503 when APP_SECRET is unset. 207 when the seed worked but the dues setup failed."
+          }
+        },
+        {
           "name": "PayPal client token",
           "event": [
             {

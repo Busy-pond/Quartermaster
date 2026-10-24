@@ -40,6 +40,12 @@ Honest summary: the whole money path is proven with real sandbox money. Agent �
 | `TESTING.md`: manual checklist for the 9 features no person has used yet, plus the demo reset | ✅ written · 🟡 checks not run yet: that's your list |
 | Found along the way | After `npm run db:seed` the Beach mandate has $438 left, so the README's "4 folding tables → blocked under M7" only holds on today's test data. TESTING.md uses 12 tables. Fix the README before recording · `/treasurer` has no role guard (volunteers get a read-only view) |
 
+### Task 9 fixes + Task 11 (Oct 24), in checkpoints. Nothing deployed, no trial, not committed
+| Checkpoint | Result |
+|---|---|
+| 1. Studio layout + approval wording | ✅ checkpoint 1 done, next: checkpoint 2, `/api/admin/reset-demo` behind `APP_SECRET` · Compose (`edit`) panel collapsed in the default layout; Purchases grid auto-sizes columns (AG Studio 3 has no per-column width) · status columns say "Approved, not yet paid" for an unpaid approved purchase (classic grid and Studio Purchases table); "Pre-approved" stays for the engine's decision · fixed: paid receipts were counted "pre-approved" in Mandate health, now "treasurer-approved" (D66) · 174/174 tests (new 2), types clean · 🟡 not seen in a browser; a layout saved in your browser needs "Reset" to pick up the new default |
+| 2. `POST /api/admin/reset-demo` | ✅ checkpoint 2 done, next: checkpoint 3, sign-in/role checks on every data-changing route and on /treasurer · seed moved to `src/lib/demo/seed.ts` (shared by `npm run db:seed` and the route), then `setupDues` (PayPal sandbox) · `Authorization: Bearer <APP_SECRET>`; 503 when unset or under 16 characters, 401 when wrong (`checkAdminSecret`, timing-safe, 4 tests) · ✅ production build over HTTP: wrong and missing secret → 401 · OpenAPI + Postman (47 requests, new "wrong admin secret is rejected") · 178/178 tests, types clean · 🟡 not run with the right secret (it wipes the demo data): your call before recording |
+
 ### Day 19, built Oct 24: Elastic (Task 10). No trial started, no paid endpoint called
 **Task 10: all 5 checkpoints done** on a local Elasticsearch 9.1.0 (docker-compose). Left: Elastic Cloud with Jina embeddings once the trial starts (Nov 3).
 | Checkpoint | Result |

@@ -16,7 +16,7 @@ import { Stamp, stampFor } from "@/components/stamp";
 import { money, shortDate } from "@/lib/format";
 import { REIMBURSEMENT_STATUS, reimbursementStamp } from "@/lib/reimbursements/labels";
 import type { Envelope } from "@/lib/dashboard/aggregate";
-import { awaitsTreasurer } from "@/lib/dashboard/insights";
+import { awaitsTreasurer, paymentState } from "@/lib/dashboard/insights";
 import type { PaymentGridRow, ReimbursementGridRow } from "@/lib/dashboard/load";
 
 // AG Grid and AG Charts each keep their own module registry.
@@ -84,6 +84,8 @@ function EnvelopeCell({ data }: ICellRendererParams<Envelope>) {
 
 function PaymentStatusCell({ data }: ICellRendererParams<PaymentGridRow>) {
   if (!data) return null;
+  // "approved" = nobody has paid yet; the Pre-approved stamp is for the engine's decision, shown on the receipt.
+  if (data.status === "approved") return <span className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand">{paymentState(data.status)}</span>;
   const kind = stampFor(data.status);
   return kind ? <Stamp kind={kind} size="sm" animate={false} className="my-2.5 rotate-[-3deg]!" /> : <span className="text-muted">{data.status}</span>;
 }

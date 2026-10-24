@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { awaitsTreasurer, blockedAttempts, health, mandateHealth, overBudgetShare, pendingReimbursements, resultOf, spendByEvent, type DecidedRow } from "./insights";
+import { awaitsTreasurer, blockedAttempts, health, mandateHealth, overBudgetShare, paymentState, pendingReimbursements, resultOf, spendByEvent, type DecidedRow } from "./insights";
 import type { Envelope } from "./aggregate";
 
 const day = (d: string) => new Date(`${d}T10:00:00Z`);
@@ -23,6 +23,20 @@ describe("resultOf", () => {
     expect(rows.map(resultOf)).toEqual(["pre-approved", "treasurer-approved", "waiting", "blocked", "blocked", "blocked", "treasurer-approved"]);
   });
   it("keeps a receipt still being read out of 'waiting'", () => expect(resultOf({ kind: "reimbursement", status: "submitted", decision: null })).toBe("checking"));
+  it("never calls a receipt pre-approved: the treasurer clicked to pay it, even when the rules allowed it", () => {
+    expect(resultOf({ kind: "reimbursement", status: "paid", decision: allow })).toBe("treasurer-approved");
+    expect(resultOf({ kind: "reimbursement", status: "approved", decision: allow })).toBe("treasurer-approved");
+    expect(resultOf({ kind: "purchase", status: "approved", decision: allow })).toBe("pre-approved");
+  });
+});
+
+describe("paymentState", () => {
+  it("names the state of a purchase, not the decision", () => {
+    expect(paymentState("approved")).toBe("Approved, not yet paid");
+    expect(paymentState("captured")).toBe("Paid");
+    expect(paymentState("needs_approval")).toBe("Waiting for the treasurer");
+    expect(paymentState("something_new")).toBe("something_new");
+  });
 });
 
 describe("awaitsTreasurer", () => {

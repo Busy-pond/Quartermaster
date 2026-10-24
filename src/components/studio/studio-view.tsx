@@ -88,7 +88,7 @@ function dataSources(d: DashboardData): AgDataSourcesDefinition<QmRegistry> {
         name: "Decisions",
         description: "One row per purchase or receipt: what the mandate engine and the treasurer decided.",
         data: t.decisions,
-        fields: [text("id", "Request id"), date("date", "Date"), text("kind", "Kind"), text("mandate_id", "Mandate id"), text("mandate", "Mandate"), text("result", "Result", "pre-approved, treasurer-approved, waiting or blocked"), dollars("amount", "Amount"), text("clause", "Deciding rule")],
+        fields: [text("id", "Request id"), date("date", "Date"), text("kind", "Kind"), text("mandate_id", "Mandate id"), text("mandate", "Mandate"), text("result", "Result", "pre-approved (a purchase inside the auto-approve limits), treasurer-approved, waiting or blocked"), dollars("amount", "Amount"), text("clause", "Deciding rule")],
       },
       {
         id: "rule_checks",
@@ -171,7 +171,8 @@ export const DEFAULT_LAYOUT: AgReportState<QmRegistry> = {
         },
         payments: {
           type: "grid",
-          format: { title: { enabled: true, text: "Purchases" } },
+          // Columns fit their content, so dates aren't cut off (AG Studio 3 has no per-column width).
+          format: { title: { enabled: true, text: "Purchases" }, style: { columnAutoSize: true } },
           dataMapping: { cols: [{ id: "payments.date" }, { id: "payments.items" }, { id: "payments.vendor" }, { id: "payments.mandate" }, { id: "payments.amount" }, { id: "payments.status" }, { id: "payments.rule" }] },
         },
       },
@@ -185,7 +186,8 @@ export const DEFAULT_LAYOUT: AgReportState<QmRegistry> = {
     },
   ],
   selectedPageId: "treasurer",
-  panels: { filters: { collapsed: true }, data: { collapsed: true } },
+  // "edit" is the Compose panel; collapsed so the dashboard and the assistant get the room.
+  panels: { filters: { collapsed: true }, data: { collapsed: true }, edit: { collapsed: true } },
 };
 
 /** The layout this browser last saved, if any. Per-viewer convenience only; the default layout is in code. */

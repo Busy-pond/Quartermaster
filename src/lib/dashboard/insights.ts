@@ -25,15 +25,35 @@ export interface DecidedRow {
  */
 export const awaitsTreasurer = (r: Pick<DecidedRow, "kind" | "status">) => r.status === "needs_approval" || (r.kind === "reimbursement" && r.status === "failed");
 
-/** What happened to a request, in the treasurer's words. Pre-approved = inside the mandate's auto-approve limits (the "Pre-approved" stamp). Checking = a receipt still being read. */
+/**
+ * What happened to a request, in the treasurer's words. Pre-approved = a purchase inside the
+ * mandate's auto-approve limits (the "Pre-approved" stamp). A receipt is never pre-approved:
+ * every payout waits for the treasurer's click, even when the rules allowed it. Checking = a
+ * receipt still being read.
+ */
 export type Result = "pre-approved" | "treasurer-approved" | "waiting" | "blocked" | "checking";
 
 export function resultOf(r: Pick<DecidedRow, "kind" | "status" | "decision">): Result {
   if (r.kind === "purchase" ? r.status === "denied" : r.status === "rejected") return "blocked";
   if (awaitsTreasurer(r)) return "waiting";
   if (r.status === "submitted") return "checking";
-  return r.decision?.outcome === "allow" ? "pre-approved" : "treasurer-approved";
+  return r.kind === "purchase" && r.decision?.outcome === "allow" ? "pre-approved" : "treasurer-approved";
 }
+
+/**
+ * A purchase's payment state, in the treasurer's words, for status columns. "approved" is a
+ * state (nobody has paid yet), not a decision, so it reads "Approved, not yet paid"; the
+ * "Pre-approved" stamp stays for the mandate engine's decision.
+ */
+export const PAYMENT_STATE: Record<string, string> = {
+  denied: "Blocked",
+  needs_approval: "Waiting for the treasurer",
+  approved: "Approved, not yet paid",
+  captured: "Paid",
+  failed: "Payment failed",
+  refunded: "Refunded",
+};
+export const paymentState = (status: string) => PAYMENT_STATE[status] ?? status;
 
 export const ruleLabel = (clause: string) => CLAUSES[clause as keyof typeof CLAUSES] ?? clause;
 

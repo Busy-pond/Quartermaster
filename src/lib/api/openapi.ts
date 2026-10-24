@@ -7,7 +7,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { APP_REVISION } from "@/lib/version";
 import { CaptureBody, InsightsQuery, KeyBody, RefundBody, ReimbursementBody, RejectBody, SessionBody, StudioTurnBody, SubscriptionBody } from "./schemas";
 
-type Auth = "session" | "apiKey" | "paypal" | "none";
+type Auth = "session" | "apiKey" | "paypal" | "admin" | "none";
 
 interface Op {
   method: "get" | "post" | "delete";
@@ -26,6 +26,7 @@ interface Op {
 const OPS: Op[] = [
   { method: "get", path: "/api/health", tag: "System", summary: "Health check", auth: "none", ok: { status: 200, description: "The app is up", example: { ok: true } } },
   { method: "get", path: "/api/openapi.json", tag: "System", summary: "This document", auth: "none", ok: { status: 200, description: "OpenAPI 3.1" } },
+  { method: "post", path: "/api/admin/reset-demo", tag: "System", summary: "Reset the demo org", description: "Wipes and re-seeds the demo org (as npm run db:seed), then sets up the dues plan in the PayPal sandbox (as npm run setup:dues). Bearer APP_SECRET; 503 when APP_SECRET is unset. 207 when the seed worked but the dues setup failed.", auth: "admin", ok: { status: 200, description: "Seeded", example: { ok: true, seeded: { org: "Riverside Cleanup Crew", members: 6, purchases: 4 }, dues: { ok: true, planId: "P-…", amountCents: 1000 } } }, errors: [401, 503] },
   { method: "post", path: "/api/session", tag: "Session", summary: "Demo sign-in", description: "Signs in as the demo volunteer or treasurer and sets the session cookie. No passwords: this is a sandbox demo.", auth: "none", body: SessionBody, ok: { status: 200, description: "Signed in", example: { member: { id: "…", name: "Priya Nair", role: "treasurer" } } }, errors: [400, 503] },
   { method: "delete", path: "/api/session", tag: "Session", summary: "Sign out", auth: "none", ok: { status: 200, description: "Signed out", example: { ok: true } } },
   { method: "post", path: "/api/chat", tag: "Agent", summary: "Chat with the purchasing agent", description: "AI SDK v6 UI message stream. Body: { id, messages } as sent by useChat. The agent can search, dry-run and propose; it cannot pay.", auth: "session", ok: { status: 200, description: "Server-sent UI message stream", contentType: "text/event-stream" }, errors: [400, 401, 403] },
@@ -67,6 +68,7 @@ const SECURITY: Record<Auth, Record<string, string[]>[] | undefined> = {
   session: [{ session: [] }],
   apiKey: [{ apiKey: [] }],
   paypal: [{ paypalSignature: [] }],
+  admin: [{ adminSecret: [] }],
   none: [],
 };
 
@@ -114,6 +116,7 @@ export function openApiDocument(serverUrl: string) {
         session: { type: "apiKey", in: "cookie", name: "qm_member", description: "Set by POST /api/session (demo sign-in)" },
         apiKey: { type: "http", scheme: "bearer", description: "qm_live_… key created on /settings (MCP only)" },
         paypalSignature: { type: "apiKey", in: "header", name: "paypal-transmission-sig", description: "Verified with PayPal's verify-webhook-signature API" },
+        adminSecret: { type: "http", scheme: "bearer", description: "The server's APP_SECRET (admin routes only; refused when it is unset)" },
       },
       schemas: { Error: { type: "object", properties: { error: { type: "string" }, paypalDebugId: { type: ["string", "null"] } }, required: ["error"] } },
     },

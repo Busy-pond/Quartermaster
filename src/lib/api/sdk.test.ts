@@ -7,7 +7,7 @@ import { QuartermasterClient, QuartermasterError } from "../../../sdk/src/index"
 const source = readFileSync(join(process.cwd(), "sdk", "src", "index.ts"), "utf8");
 const sdkRoutes = new Set([...source.matchAll(/@route (GET|POST|DELETE) (\S+)/g)].map((m) => `${m[1].toLowerCase()} ${m[2]}`));
 /** PayPal calls the webhook, and AG Studio's adapter in the browser calls the agent turn; no client needs them. */
-const SERVER_ONLY = new Set(["post /api/webhooks/paypal", "post /api/studio/llm"]);
+const SERVER_ONLY = new Set(["post /api/webhooks/paypal", "post /api/studio/llm", "post /api/admin/reset-demo"]);
 
 describe("TypeScript SDK", () => {
   it("has a method for every route in the OpenAPI document", () => {

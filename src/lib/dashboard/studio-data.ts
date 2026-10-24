@@ -5,7 +5,7 @@
  * data; nothing here is sample data.
  */
 import type { DashboardData } from "./load";
-import { firedClauses, resultOf, ruleLabel } from "./insights";
+import { firedClauses, paymentState, resultOf, ruleLabel } from "./insights";
 
 const usd = (cents: number) => cents / 100;
 
@@ -31,7 +31,7 @@ export function studioTables(d: DashboardData) {
       mandate_id: p.mandateId,
       mandate: p.mandate,
       amount: usd(p.amountCents),
-      status: p.status,
+      status: paymentState(p.status),
       rule: p.clause,
     })),
     reimbursements: d.reimbursements.map((r) => ({

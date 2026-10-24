@@ -51,6 +51,15 @@ const CASES: Case[] = [
     status: 200,
     checks: ['pm.expect(json.openapi).to.eql("3.1.0")', 'pm.expect(Object.keys(json.paths)).to.include("/api/session")', "pm.expect(Object.keys(json.paths).length).to.be.above(15)"],
   },
+  {
+    folder: "1. Public",
+    name: "Demo reset with a wrong admin secret is rejected",
+    method: "POST",
+    path: "/api/admin/reset-demo",
+    headers: { Authorization: "Bearer wrong-secret-wrong-secret-wrong" },
+    status: 401,
+    checks: ['pm.expect(json.error).to.match(/admin secret/)'],
+  },
   { folder: "1. Public", name: "PayPal client token", method: "GET", path: "/api/paypal/client-token", status: 200, checks: ['pm.expect(json.accessToken).to.be.a("string").and.not.empty'] },
   {
     folder: "1. Public",
