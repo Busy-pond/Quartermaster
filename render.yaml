@@ -1,19 +1,53 @@
 # Deploy to Render: one web service. The database lives on Neon (free forever),
-# so nothing expires before judging ends.
+# so nothing expires before judging ends. Secrets are sync: false (set in the dashboard).
 services:
   - type: web
     name: quartermaster
     runtime: node
     plan: free # switch to "starter" (paid from hackathon credits) before recording the demo
-    buildCommand: npm install --no-audit --no-fund && npm run build
+    buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: PAYPAL_API_BASE
+        value: https://api-m.sandbox.paypal.com
+      - key: NEXT_PUBLIC_PAYPAL_SDK_URL
+        value: https://www.sandbox.paypal.com/web-sdk/v6/core
+      - key: AI_MODEL
+        value: gemini-3.5-flash
+      - key: EMBEDDING_MODEL
+        sync: false
+      - key: ZAPIER_MCP_TOOLS
+        sync: false
+      - key: ZAPIER_SLACK_CHANNEL
+        sync: false
+      - key: ELASTIC_INFERENCE_ID
+        sync: false
+      - key: ELASTIC_ENABLED
+        value: "false"
+      - key: AG_STUDIO_ENABLED
+        value: "true"
+      - key: CHANNEL3_ENABLED
+        value: "true"
+      - key: EMBEDDINGS_ENABLED
+        value: "false"
+      - key: KERNEL_ENABLED
+        value: "false"
+      - key: ZAPIER_ENABLED
+        value: "false"
+      - key: SLACK_ENABLED
+        value: "false"
+      - key: RESEND_ENABLED
+        value: "false"
       - key: APP_URL
         sync: false
+      - key: APP_SECRET
+        sync: false
       - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_DIRECT
         sync: false
       - key: PAYPAL_CLIENT_ID
         sync: false
@@ -21,23 +55,31 @@ services:
         sync: false
       - key: PAYPAL_WEBHOOK_ID
         sync: false
-      - key: PAYPAL_API_BASE
-        value: https://api-m.sandbox.paypal.com
-      - key: NEXT_PUBLIC_PAYPAL_SDK_URL
-        value: https://www.sandbox.paypal.com/web-sdk/v6/core
       - key: SANDBOX_PAYEE_EMAIL
         sync: false
       - key: SANDBOX_VOLUNTEER_EMAIL
         sync: false
       - key: GOOGLE_GENERATIVE_AI_API_KEY
         sync: false
-      - key: AI_MODEL
-        value: gemini-3.5-flash
       - key: CHANNEL3_API_KEY
         sync: false
-      - key: CHANNEL3_ENABLED
-        value: "true"
       - key: AG_STUDIO_LICENSE_KEY
         sync: false
-      - key: AG_STUDIO_ENABLED
-        value: "true"
+      - key: ELASTIC_URL
+        sync: false
+      - key: ELASTIC_API_KEY
+        sync: false
+      - key: KERNEL_API_KEY
+        sync: false
+      - key: ZAPIER_MCP_URL
+        sync: false
+      - key: ZAPIER_MCP_TOKEN
+        sync: false
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
+      - key: TREASURER_EMAIL
+        sync: false

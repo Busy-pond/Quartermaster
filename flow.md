@@ -35,7 +35,7 @@ Honest summary: the whole money path is proven with real sandbox money. Agent �
 | App moved from `quartermaster/` to the repo root (`git mv`, history kept) | ✅ 118 tracked files moved; `.env.local` still ignored |
 | Stray copies | ✅ leftover build output and a dev-server `layout.js` stub deleted after your OK; old dev server stopped |
 | CI from the root | 🟡 workflow updated (no `working-directory`); runs on the next push |
-| Render from the root | 🟡 `render.yaml` needs no change; not deployed |
+| Render from the root | 🟡 checkpoint 4: `render.yaml` lists every env var (secrets `sync: false`, no real values), build `npm ci && npm run build`, start `npm start`, health `/api/health`; `ELASTIC_ENABLED=false`, `AG_STUDIO_ENABLED=true`, `CHANNEL3_ENABLED=true`; not deployed |
 | `CLAUDE.md` with the working rules | ✅ added |
 | `TESTING.md`: manual checklist for the 9 features no person has used yet, plus the demo reset | ✅ written · 🟡 checks not run yet: that's your list |
 | Found along the way | After `npm run db:seed` the Beach mandate has $438 left, so the README's "4 folding tables → blocked under M7" only holds on today's test data. TESTING.md uses 12 tables. Fix the README before recording · ~~`/treasurer` has no role guard~~ fixed Oct 24 (D68) |
