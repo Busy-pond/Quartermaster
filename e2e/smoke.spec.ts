@@ -32,5 +32,6 @@ test("a volunteer's request is approved and paid by the treasurer", async ({ pag
   // Mock PayPal captures; the app shows the Paid stamp, then opens the trust receipt.
   await expect(page.getByText("Payment captured by PayPal")).toBeVisible();
   await expect(page).toHaveURL(/\/receipts\//);
-  await expect(page.getByText("MOCKCAPTURE")).toBeVisible();
+  // The capture id shows twice on the receipt (the PayPal field and the "Captured …" timeline line).
+  await expect(page.getByText("MOCKCAPTURE").first()).toBeVisible();
 });
