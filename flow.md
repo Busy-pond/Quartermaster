@@ -40,6 +40,19 @@ Honest summary: the whole money path is proven with real sandbox money. Agent �
 | `TESTING.md`: manual checklist for the 9 features no person has used yet, plus the demo reset | ✅ written · 🟡 checks not run yet: that's your list |
 | Found along the way | After `npm run db:seed` the Beach mandate has $438 left, so the README's "4 folding tables → blocked under M7" only holds on today's test data. TESTING.md uses 12 tables. Fix the README before recording · ~~`/treasurer` has no role guard~~ fixed Oct 24 (D68) |
 
+### pgvector search live on Render (Oct 24)
+| Step | Result |
+|---|---|
+| Embeddings on in production | 🟡 cause of `policyEmbedded: 0`: `render.yaml` had `EMBEDDINGS_ENABLED="false"`, now `"true"` (D73). ✅ the local key embeds (gemini-embedding-2, 768 dims). The reset route already embeds after seeding. Not yet set on Render, and no reset run with it |
+
+### Landing page (Oct 24), in checkpoints. Not committed, not deployed
+| Checkpoint | Result |
+|---|---|
+| 1. Hero + scroll story | 🟡 `/` is the new landing page: a sample receipt that stamps Paid on load, plus a six-step story lit by IntersectionObserver (all steps shown under reduced motion). The old home page is at `/try`, unchanged. The smoke test starts at `/try`, and the layout test covers `/try` (D69). Unit tests 186/186 pass, types clean, build passes. Not yet seen in a browser, and Playwright not run |
+| 2. Embedded demo + rules | 🟡 "Try it" section embeds `MandateSimulator` and links to `/try`. A clickable M0–M10 list takes its names from `CLAUSES` and shows what each rule checks and whether a failure blocks the order or sends it to the treasurer (D70). Unit tests 186/186 pass, types clean, build passes. Not yet seen in a browser |
+| 3. Built on + developers | 🟡 the "Built on" strip shows each integration's live, fallback or off state from the same `integrations()` and `StateBadge` as /status. The developer section has the MCP config with the placeholder `qm_live_...`, a link to `/api/openapi.json` and 5 lines from the SDK README (D71). Unit tests 186/186 pass, types clean, build passes. Not yet seen in a browser |
+| 4. Buttons, footer, polish | ✅ buttons to /chat (signs in as volunteer), /treasurer (signs in as treasurer) and /status. Footer has the MIT license and GitHub links. Fixed 54 px of sideways scroll at 360 px (D72). ✅ Playwright layout checks, 13/13 against the dev database (sign-in and page reads only): every page at 360 px, `/` at 768 and 1440 px, all six story steps lit under reduced motion. Unit tests 186/186 pass, types clean, build passes. Smoke test not re-run (it needs `E2E_DATABASE_URL`) |
+
 ### Task 9 fixes + Task 11 (Oct 24), in checkpoints. Nothing deployed, no trial, not committed
 | Checkpoint | Result |
 |---|---|

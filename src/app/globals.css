@@ -273,7 +273,54 @@ input[type="range"].ledger-range {
   height: 28px;
 }
 
+/* ------------------------------------------------------------ Landing page */
+/* The hero receipt's stamp lands just after the paper settles. */
+.landing-stamp {
+  animation-delay: 450ms;
+}
+/* Story rail: a dashed line that fills with ledger green as steps light up. */
+.story-rail {
+  position: absolute;
+  left: calc(1.125rem - 1px);
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 2px;
+  background: repeating-linear-gradient(to bottom, var(--color-line) 0 6px, transparent 6px 12px);
+}
+.story-rail::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--color-brand);
+  transform-origin: top;
+  scale: 1 var(--fill, 1);
+  transition: scale 500ms var(--ease-out-soft);
+}
+.story-step > * {
+  transition:
+    opacity 400ms var(--ease-out-soft),
+    background-color 300ms ease,
+    border-color 300ms ease,
+    color 300ms ease;
+}
+/* Dimming only starts once the observer is running, so no-JS visitors see every step. */
+.story[data-ready] .story-step:not([data-lit]) > div {
+  opacity: 0.35;
+}
+.story-step[data-lit] .story-dot {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: #fff;
+}
+.story-step[data-lit] .story-note {
+  border-color: var(--color-brand);
+  background: var(--color-brand-soft);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .story-step > div {
+    opacity: 1 !important;
+  }
   *,
   *::before,
   *::after {

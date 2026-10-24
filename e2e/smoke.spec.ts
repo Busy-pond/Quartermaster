@@ -2,11 +2,11 @@ import { expect, test } from "@playwright/test";
 
 /**
  * The hero flow, end to end, with PayPal and the AI model mocked:
- * home -> volunteer chat -> proposal -> treasurer approves and pays -> trust receipt.
+ * the /try slip -> volunteer chat -> proposal -> treasurer approves and pays -> trust receipt.
  * The mandate engine, the database and every page are the real ones.
  */
 test("a volunteer's request is approved and paid by the treasurer", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/try");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Let an AI buy for your team");
 
   // Volunteer asks in chat.

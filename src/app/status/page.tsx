@@ -1,12 +1,7 @@
 import { integrations } from "@/lib/flags";
+import { StateBadge } from "@/components/integration-state";
 
 export const dynamic = "force-dynamic";
-
-const STYLE = {
-  live: "bg-ok-soft text-ok",
-  fallback: "bg-warn-soft text-warn",
-  off: "bg-bad-soft text-bad",
-} as const;
 
 export default function StatusPage() {
   const list = integrations();
@@ -23,7 +18,7 @@ export default function StatusPage() {
               <p className="text-sm text-muted">{i.role}</p>
               {i.state !== "live" && <p className="mt-1 text-sm text-muted">Fallback: {i.fallback}</p>}
             </div>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STYLE[i.state]}`}>{i.state}</span>
+            <StateBadge state={i.state} />
           </div>
         ))}
       </div>
