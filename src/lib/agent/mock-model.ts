@@ -49,16 +49,16 @@ export function nextStep(prompt: LanguageModelV3CallOptions["prompt"]): Step {
     return { text: `I proposed the order. The mandate engine says: ${p.outcome}. ${p.approvalUrl ? `The treasurer can review it at ${p.approvalUrl}.` : ""}` };
   }
   if (seen.checkPurchase) {
-    const mandateId = firstMandateId(seen);
+    const mandate = firstMandate(seen);
     const option = firstOption(seen);
-    if (!mandateId || !option) return { text: "I could not find an option that fits." };
+    if (!mandate || !option) return { text: "I could not find an option that fits." };
     return {
       calls: [
         {
           name: "proposePurchase",
           input: {
-            mandateId,
-            items: [{ optionId: option.optionId, quantity: 2 }],
+            mandateId: mandate.mandateId,
+            items: [line(option, mandate)],
             consideredOptionIds: [option.optionId],
             rationale: `Cheapest suitable option per unit from ${option.vendor}, per policy 3.3.`,
           },
@@ -67,18 +67,21 @@ export function nextStep(prompt: LanguageModelV3CallOptions["prompt"]): Step {
     };
   }
   if (seen.searchProducts) {
-    const mandateId = firstMandateId(seen);
+    const mandate = firstMandate(seen);
     const option = firstOption(seen);
-    if (!mandateId || !option) return { text: "I could not find any products for that request." };
-    return { calls: [{ name: "checkPurchase", input: { mandateId, items: [{ optionId: option.optionId, quantity: 2 }] } }] };
+    if (!mandate || !option) return { text: "I could not find any products for that request." };
+    return { calls: [{ name: "checkPurchase", input: { mandateId: mandate.mandateId, items: [line(option, mandate)] } }] };
   }
   return { calls: [{ name: "listMandates", input: {} }, { name: "searchProducts", input: { query: "folding tables" } }] };
 }
 
-function firstMandateId(seen: Record<string, Json>): string | null {
-  const list = (seen.listMandates as { list?: { mandateId?: string }[] } | undefined)?.list;
-  return list?.[0]?.mandateId ?? null;
+function firstMandate(seen: Record<string, Json>): { mandateId: string; categories: string[] } | null {
+  const m = (seen.listMandates as { list?: { mandateId?: string; categories?: string[] }[] } | undefined)?.list?.[0];
+  return m?.mandateId ? { mandateId: m.mandateId, categories: m.categories ?? [] } : null;
 }
+
+/** One order line in the tools' input shape (OrderInput): 2 listings, filed under the mandate's first category. */
+const line = (option: { optionId: string }, mandate: { categories: string[] }) => ({ optionId: option.optionId, listings: 2, category: mandate.categories[0] ?? "supplies" });
 function firstOption(seen: Record<string, Json>): { optionId: string; vendor: string } | null {
   const options = (seen.searchProducts as { options?: { optionId: string; vendor: string }[] } | undefined)?.options;
   return options?.[0] ?? null;

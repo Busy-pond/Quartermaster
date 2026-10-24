@@ -3,19 +3,26 @@
  * Needs a build first (`npm run test:e2e -- --build-only`). Starts and stops both servers itself.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { APP_PORT, e2eEnv } from "./e2e-env.mjs";
+import { APP_PORT, MOCK_PAYPAL_PORT, e2eEnv } from "./e2e-env.mjs";
 
 const env = e2eEnv();
-const servers = [
-  spawn("node", ["scripts/mock-paypal.mjs"], { env, stdio: "inherit", shell: true }),
-  spawn("npx", ["next", "start", "-p", String(APP_PORT)], { env, stdio: "inherit", shell: true }),
-];
+// Each server gets its own process group (detached), so stop() can end the shell wrapper AND the real
+// server under it. Killing only the wrapper left the mock PayPal running in CI, and the Playwright step
+// that follows then found its port taken.
+const isWin = process.platform === "win32";
+const start = (cmd, args) => spawn(cmd, args, { env, stdio: "inherit", shell: true, detached: !isWin });
+const servers = [start("node", ["scripts/mock-paypal.mjs"]), start("npx", ["next", "start", "-p", String(APP_PORT)])];
 
 function stop() {
   for (const s of servers) {
-    // On Windows a shell wrapper hides the real server, so kill the whole tree.
-    if (process.platform === "win32") spawnSync("taskkill", ["/F", "/T", "/PID", String(s.pid)], { stdio: "ignore" });
-    else s.kill("SIGTERM");
+    if (isWin) spawnSync("taskkill", ["/F", "/T", "/PID", String(s.pid)], { stdio: "ignore" });
+    else {
+      try {
+        process.kill(-s.pid, "SIGTERM"); // the whole group
+      } catch {
+        /* already gone */
+      }
+    }
   }
 }
 
@@ -33,7 +40,7 @@ async function waitFor(url, seconds) {
 
 let code = 1;
 try {
-  if (!(await waitFor(`http://localhost:${APP_PORT}/api/health`, 90)) || !(await waitFor("http://localhost:4010/health", 10))) {
+  if (!(await waitFor(`http://localhost:${APP_PORT}/api/health`, 90)) || !(await waitFor(`http://localhost:${MOCK_PAYPAL_PORT}/health`, 10))) {
     console.error("The app or the mock PayPal did not start in time.");
   } else {
     code =

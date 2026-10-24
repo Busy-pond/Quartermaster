@@ -32,7 +32,7 @@ export interface AgentContext {
 
 const dollars = (cents: number) => Math.round(cents) / 100;
 
-const OrderInput = z.object({
+export const OrderInput = z.object({
   mandateId: z.string(),
   items: z
     .array(

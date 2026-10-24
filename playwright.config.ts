@@ -5,6 +5,8 @@ import { defineConfig, devices } from "@playwright/test";
  * builds, sets the environment and calls this). Run it with `npm run test:e2e`.
  */
 const PORT = 3200;
+/** The mock PayPal, on its own port (scripts/e2e-env.mjs sets MOCK_PAYPAL_PORT). */
+const MOCK_PORT = Number(process.env.MOCK_PAYPAL_PORT || 4020);
 /** Point at an app that is already running (for example `next dev`) to skip the build and the servers below. */
 const EXISTING = process.env.E2E_BASE_URL;
 
@@ -19,7 +21,7 @@ export default defineConfig({
   use: { baseURL: EXISTING ?? `http://localhost:${PORT}`, trace: "retain-on-failure", screenshot: "only-on-failure" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: EXISTING ? undefined : [
-    { command: "node scripts/mock-paypal.mjs", url: "http://localhost:4010/health", reuseExistingServer: !process.env.CI, timeout: 30_000 },
+    { command: "node scripts/mock-paypal.mjs", url: `http://localhost:${MOCK_PORT}/health`, reuseExistingServer: !process.env.CI, timeout: 30_000 },
     { command: `npx next start -p ${PORT}`, url: `http://localhost:${PORT}/api/health`, reuseExistingServer: false, timeout: 120_000 },
   ],
 });

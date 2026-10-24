@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nextStep } from "./mock-model";
+import { OrderInput } from "./tools";
 
 type Prompt = Parameters<typeof nextStep>[0];
 const user = { role: "user", content: [{ type: "text", text: "Get tables" }] };
@@ -7,7 +8,7 @@ const result = (toolName: string, value: unknown) => ({
   role: "tool",
   content: [{ type: "tool-result", toolCallId: toolName, toolName, output: { type: "json", value } }],
 });
-const mandates = result("listMandates", [{ mandateId: "m1" }]);
+const mandates = result("listMandates", [{ mandateId: "m1", categories: ["supplies", "safety"] }]);
 const options = result("searchProducts", { options: [{ optionId: "o1", vendor: "Uline" }] });
 
 describe("scripted agent", () => {
@@ -18,7 +19,13 @@ describe("scripted agent", () => {
 
   it("dry-runs with ids taken from the tool results, never its own prices", () => {
     const s = nextStep([user, mandates, options] as Prompt);
-    expect("calls" in s && s.calls[0]).toEqual({ name: "checkPurchase", input: { mandateId: "m1", items: [{ optionId: "o1", quantity: 2 }] } });
+    expect("calls" in s && s.calls[0]).toEqual({ name: "checkPurchase", input: { mandateId: "m1", items: [{ optionId: "o1", listings: 2, category: "supplies" }] } });
+  });
+
+  it("sends inputs the real tools accept (CI failed when it sent `quantity`)", () => {
+    const check = nextStep([user, mandates, options] as Prompt);
+    const propose = nextStep([user, mandates, options, result("checkPurchase", { outcome: "allow" })] as Prompt);
+    for (const s of [check, propose]) expect(() => OrderInput.parse("calls" in s && s.calls[0].input)).not.toThrow();
   });
 
   it("proposes after the dry run, then explains the outcome", () => {

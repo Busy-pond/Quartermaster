@@ -1,13 +1,13 @@
 /**
  * A tiny stand-in for PayPal, for CI and the Playwright smoke test (Task 8).
- * Point the app at it with PAYPAL_API_BASE=http://localhost:4010 and
- * NEXT_PUBLIC_PAYPAL_SDK_URL=http://localhost:4010/sdk.js (the second is baked in at build time).
+ * Listens on MOCK_PAYPAL_PORT (default 4020). Point the app at it with PAYPAL_API_BASE=http://localhost:4020 and
+ * NEXT_PUBLIC_PAYPAL_SDK_URL=http://localhost:4020/sdk.js (the second is baked in at build time); scripts/e2e-env.mjs does both.
  * It answers just the calls the app makes, never verifies a webhook, and keeps nothing between runs.
  * Plain Node, no dependencies, works on Windows: `node scripts/mock-paypal.mjs`.
  */
 import { createServer } from "node:http";
 
-const port = Number(process.env.MOCK_PAYPAL_PORT ?? 4010);
+const port = Number(process.env.MOCK_PAYPAL_PORT || 4020);
 const orders = new Map();
 let n = 0;
 

@@ -8,6 +8,8 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 export const APP_PORT = 3200;
+/** The mock PayPal's port, kept apart from the app's. Override with MOCK_PAYPAL_PORT. */
+export const MOCK_PAYPAL_PORT = Number(process.env.MOCK_PAYPAL_PORT || 4020);
 
 export function e2eEnv() {
   const url = process.env.E2E_DATABASE_URL;
@@ -24,8 +26,9 @@ export function e2eEnv() {
     ...(url ? { DATABASE_URL: url } : {}),
     NEXT_DIST_DIR: ".next-e2e",
     // Always the mock: real PayPal keys must never be sent to it, and the mock must never stand in for them.
-    PAYPAL_API_BASE: "http://localhost:4010",
-    NEXT_PUBLIC_PAYPAL_SDK_URL: "http://localhost:4010/sdk.js",
+    MOCK_PAYPAL_PORT: String(MOCK_PAYPAL_PORT),
+    PAYPAL_API_BASE: `http://localhost:${MOCK_PAYPAL_PORT}`,
+    NEXT_PUBLIC_PAYPAL_SDK_URL: `http://localhost:${MOCK_PAYPAL_PORT}/sdk.js`,
     PAYPAL_CLIENT_ID: "mock-client-id",
     PAYPAL_CLIENT_SECRET: "mock-client-secret",
     PAYPAL_WEBHOOK_ID: "mock-webhook-id",
